@@ -137,6 +137,12 @@ func TestHomeHandler_LiveQueryRendersMirrorHits(t *testing.T) {
 	if !strings.Contains(body, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d") {
 		t.Fatalf("missing download link, got: %s", body)
 	}
+	if !strings.Contains(body, `target="_blank"`) {
+		t.Fatalf("download link must open a new tab, got: %s", body)
+	}
+	if !strings.Contains(body, `rel="noopener noreferrer"`) {
+		t.Fatalf("download link missing rel=noopener noreferrer, got: %s", body)
+	}
 }
 
 func TestHomeHandler_LiveQueryRendersCoverImage(t *testing.T) {

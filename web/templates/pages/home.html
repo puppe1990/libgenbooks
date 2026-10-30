@@ -55,7 +55,7 @@
           <td class="px-4 py-3 font-mono text-xs text-foam/70">{{ if .FilesizeText }}{{ .FilesizeText }}{{ end }}</td>
           <td class="px-4 py-3 text-right">
             {{ if .MD5 }}
-            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}" data-amarra-skip class="inline-flex font-mono text-[10px] uppercase tracking-[0.18em] text-copper hover:text-foam">{{ t "home.download" }}</a>
+            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="inline-flex font-mono text-[10px] uppercase tracking-[0.18em] text-copper hover:text-foam">{{ t "home.download" }}</a>
             {{ end }}
           </td>
         </tr>
