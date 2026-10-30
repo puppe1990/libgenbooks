@@ -12,6 +12,7 @@ const maxDownloadHistoryLimit = 500
 // DownloadRecord is one click on Baixar, keyed by md5 so a second click
 // bumps the timestamp instead of duplicating the row.
 type DownloadRecord struct {
+	UserID       int64
 	MD5          string
 	Title        string
 	Author       string
@@ -22,8 +23,11 @@ type DownloadRecord struct {
 	Failed       bool
 }
 
-// RecordDownload inserts or refreshes a history row for md5.
+// RecordDownload inserts or refreshes a history row for this user and md5.
 func (s *Store) RecordDownload(rec DownloadRecord) error {
+	if rec.UserID < 1 {
+		return fmt.Errorf("record download: missing user id")
+	}
 	md5 := strings.ToLower(strings.TrimSpace(rec.MD5))
 	if !IsMD5(md5) {
 		return fmt.Errorf("record download: invalid md5 %q: want 32 hex characters", rec.MD5)
@@ -37,9 +41,9 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 		failed = 1
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO downloads (md5, title, author, year, extension, filesize, downloaded_at, failed)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(md5) DO UPDATE SET
+		`INSERT INTO downloads (user_id, md5, title, author, year, extension, filesize, downloaded_at, failed)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(user_id, md5) DO UPDATE SET
 		   title = CASE WHEN excluded.title = '' THEN downloads.title ELSE excluded.title END,
 		   author = CASE WHEN excluded.author = '' THEN downloads.author ELSE excluded.author END,
 		   year = CASE WHEN excluded.year = 0 THEN downloads.year ELSE excluded.year END,
@@ -47,7 +51,7 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 		   filesize = CASE WHEN excluded.filesize = 0 THEN downloads.filesize ELSE excluded.filesize END,
 		   downloaded_at = excluded.downloaded_at,
 		   failed = excluded.failed`,
-		md5, rec.Title, rec.Author, rec.Year, rec.Extension, rec.Filesize, when.Format(time.RFC3339Nano), failed,
+		rec.UserID, md5, rec.Title, rec.Author, rec.Year, rec.Extension, rec.Filesize, when.Format(time.RFC3339Nano), failed,
 	)
 	if err != nil {
 		return fmt.Errorf("record download %s: %w", md5, err)
@@ -55,30 +59,43 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 	return nil
 }
 
-// ListDownloads returns history newest-first, at most limit rows.
-func (s *Store) ListDownloads(limit int) ([]DownloadRecord, error) {
-	return s.queryDownloads(limit, false)
+// ListDownloads returns this user's history newest-first, at most limit rows.
+func (s *Store) ListDownloads(userID int64, limit int) ([]DownloadRecord, error) {
+	return s.queryDownloads(userID, limit, false)
 }
 
-// ListFailedDownloads returns only rows marked failed, newest-first.
-func (s *Store) ListFailedDownloads(limit int) ([]DownloadRecord, error) {
-	return s.queryDownloads(limit, true)
+// ListFailedDownloads returns this user's failed rows, newest-first.
+func (s *Store) ListFailedDownloads(userID int64, limit int) ([]DownloadRecord, error) {
+	return s.queryDownloads(userID, limit, true)
 }
 
-func (s *Store) queryDownloads(limit int, failedOnly bool) ([]DownloadRecord, error) {
+// ClaimOrphanDownloads assigns leftover user_id=0 rows (pre-tenant history)
+// to userID so a cutover owner keeps the anonymous clicks.
+func (s *Store) ClaimOrphanDownloads(userID int64) error {
+	if userID < 1 {
+		return fmt.Errorf("claim orphan downloads: missing user id")
+	}
+	_, err := s.db.Exec(`UPDATE downloads SET user_id = ? WHERE user_id = 0`, userID)
+	if err != nil {
+		return fmt.Errorf("claim orphan downloads for user %d: %w", userID, err)
+	}
+	return nil
+}
+
+func (s *Store) queryDownloads(userID int64, limit int, failedOnly bool) ([]DownloadRecord, error) {
 	if limit <= 0 {
 		limit = defaultDownloadHistoryLimit
 	}
 	if limit > maxDownloadHistoryLimit {
 		limit = maxDownloadHistoryLimit
 	}
-	query := `SELECT md5, title, author, year, extension, filesize, downloaded_at, failed
-		 FROM downloads`
+	query := `SELECT user_id, md5, title, author, year, extension, filesize, downloaded_at, failed
+		 FROM downloads WHERE user_id = ?`
 	if failedOnly {
-		query += ` WHERE failed = 1`
+		query += ` AND failed = 1`
 	}
 	query += ` ORDER BY downloaded_at DESC LIMIT ?`
-	rows, err := s.db.Query(query, limit)
+	rows, err := s.db.Query(query, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list downloads: %w", err)
 	}
@@ -104,7 +121,7 @@ func scanDownloadRow(rows interface {
 	var rec DownloadRecord
 	var when string
 	var failed int
-	if err := rows.Scan(&rec.MD5, &rec.Title, &rec.Author, &rec.Year, &rec.Extension, &rec.Filesize, &when, &failed); err != nil {
+	if err := rows.Scan(&rec.UserID, &rec.MD5, &rec.Title, &rec.Author, &rec.Year, &rec.Extension, &rec.Filesize, &when, &failed); err != nil {
 		return DownloadRecord{}, fmt.Errorf("scan download: %w", err)
 	}
 	if parsed, err := time.Parse(time.RFC3339Nano, when); err == nil {

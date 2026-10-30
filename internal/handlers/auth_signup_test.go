@@ -40,8 +40,8 @@ func TestAuth_SignUpPost_createsUserAndRedirects(t *testing.T) {
 	if rr.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303, body: %s", rr.Code, rr.Body.String())
 	}
-	if rr.Header().Get("Location") != "/dashboard" {
-		t.Errorf("Location = %q, want /dashboard", rr.Header().Get("Location"))
+	if rr.Header().Get("Location") != "/" {
+		t.Errorf("Location = %q, want /", rr.Header().Get("Location"))
 	}
 
 	user, err := s.FindUserByEmail("signup@example.com")

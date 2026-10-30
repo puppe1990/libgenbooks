@@ -22,6 +22,7 @@ var ErrEmailTaken = errors.New("email already registered")
 type Store interface {
 	FindUserByEmail(email string) (models.User, error)
 	CreateUser(email, passwordHash string) (int64, error)
+	EnsureUser(email, passwordHash string) (int64, error)
 	CreatePasswordResetToken(userID int64) (string, error)
 	ClearPasswordResetTokens(userID int64) error
 	FindPasswordResetUserID(token string) (int64, bool)
@@ -85,10 +86,15 @@ func seedAuthData(db *sql.DB, env string) error {
 	return err
 }
 
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 func (s *SQLiteStore) FindUserByEmail(email string) (models.User, error) {
+	email = normalizeEmail(email)
 	var u models.User
 	err := s.db.QueryRow(
-		"SELECT id, email, password_hash, created_at FROM users WHERE email = ?",
+		"SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = ?",
 		email,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
 	if err != nil {
@@ -98,6 +104,10 @@ func (s *SQLiteStore) FindUserByEmail(email string) (models.User, error) {
 }
 
 func (s *SQLiteStore) CreateUser(email, passwordHash string) (int64, error) {
+	email = normalizeEmail(email)
+	if email == "" {
+		return 0, fmt.Errorf("create user: empty email")
+	}
 	result, err := s.db.Exec(
 		"INSERT INTO users (email, password_hash) VALUES (?, ?)",
 		email, passwordHash,
@@ -109,6 +119,26 @@ func (s *SQLiteStore) CreateUser(email, passwordHash string) (int64, error) {
 		return 0, fmt.Errorf("create user: %w", err)
 	}
 	return result.LastInsertId()
+}
+
+// EnsureUser inserts the email when missing and returns the row id.
+// A second call with the same email keeps the original password_hash.
+func (s *SQLiteStore) EnsureUser(email, passwordHash string) (int64, error) {
+	email = normalizeEmail(email)
+	if email == "" {
+		return 0, fmt.Errorf("ensure user: empty email")
+	}
+	if _, err := s.db.Exec(
+		"INSERT OR IGNORE INTO users (email, password_hash) VALUES (?, ?)",
+		email, passwordHash,
+	); err != nil {
+		return 0, fmt.Errorf("ensure user %s: %w", email, err)
+	}
+	u, err := s.FindUserByEmail(email)
+	if err != nil {
+		return 0, err
+	}
+	return u.ID, nil
 }
 
 func (s *SQLiteStore) Sessions() session.Store {

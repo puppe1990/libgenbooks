@@ -96,6 +96,11 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		_ = s.Close()
 		return nil, fmt.Errorf("libgen catalog: %w", err)
 	}
+	if _, err := app.AssignHistoryOwner(s, books, libcfg.HistoryOwnerEmail, config.HistoryOwnerPassword()); err != nil {
+		_ = s.Close()
+		_ = books.Close()
+		return nil, fmt.Errorf("history owner: %w", err)
+	}
 	client := libcfg.Client()
 	client.HTTP.Timeout = 5 * time.Minute
 

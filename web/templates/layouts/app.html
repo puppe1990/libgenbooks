@@ -95,8 +95,7 @@
             </span>
           </a>
           <div class="flex items-center gap-4">
-            <a href="/" class="font-mono text-[10px] uppercase tracking-[0.22em] {{ if eq .ActiveNav "home" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }} transition-colors">{{ t "layout.search_nav" }}</a>
-            <a href="/downloads" class="font-mono text-[10px] uppercase tracking-[0.22em] {{ if eq .ActiveNav "downloads" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }} transition-colors">{{ t "layout.downloads_nav" }}</a>
+            <a href="/signup" class="font-mono text-[10px] uppercase tracking-[0.22em] {{ if eq .ActiveNav "signup" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }} transition-colors">{{ t "auth.signup_title" }}</a>
             <.locale-toggle current="{{ .Locale }}" />
             <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
             <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center border border-copper/40 transition-colors group-hover:border-copper" aria-hidden="true">

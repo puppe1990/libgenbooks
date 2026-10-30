@@ -10,17 +10,17 @@ func TestRecordDownload_ListsNewestFirst(t *testing.T) {
 	older := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 	newer := older.Add(time.Hour)
 	if err := s.RecordDownload(DownloadRecord{
-		MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Older", DownloadedAt: older,
+		UserID: 1, MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Older", DownloadedAt: older,
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.RecordDownload(DownloadRecord{
-		MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Newer", Author: "Ada", Year: 2024, Extension: "epub", DownloadedAt: newer,
+		UserID: 1, MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Newer", Author: "Ada", Year: 2024, Extension: "epub", DownloadedAt: newer,
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := s.ListDownloads(10)
+	got, err := s.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,14 +39,14 @@ func TestRecordDownload_UpsertsSameMD5(t *testing.T) {
 	s := newTestStore(t)
 	md5 := "cccccccccccccccccccccccccccccccc"
 	first := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
-	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "First", DownloadedAt: first}); err != nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "First", DownloadedAt: first}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Second", Author: "Bob", DownloadedAt: first.Add(time.Minute)}); err != nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Second", Author: "Bob", DownloadedAt: first.Add(time.Minute)}); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := s.ListDownloads(10)
+	got, err := s.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,14 +60,14 @@ func TestRecordDownload_UpsertsSameMD5(t *testing.T) {
 
 func TestRecordDownload_RejectsBadMD5(t *testing.T) {
 	s := newTestStore(t)
-	if err := s.RecordDownload(DownloadRecord{MD5: "nope", Title: "X"}); err == nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: "nope", Title: "X"}); err == nil {
 		t.Fatal("RecordDownload(nope) = nil, want error")
 	}
 }
 
 func TestListDownloads_Empty(t *testing.T) {
 	s := newTestStore(t)
-	got, err := s.ListDownloads(10)
+	got, err := s.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,10 +79,10 @@ func TestListDownloads_Empty(t *testing.T) {
 func TestRecordDownload_StoresFailed(t *testing.T) {
 	s := newTestStore(t)
 	md5 := "dddddddddddddddddddddddddddddddd"
-	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: true}); err != nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Crisis", Failed: true}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.ListDownloads(10)
+	got, err := s.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,17 +94,17 @@ func TestRecordDownload_StoresFailed(t *testing.T) {
 func TestListFailedDownloads_OnlyFailedRows(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.RecordDownload(DownloadRecord{
-		MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Ok",
+		UserID: 1, MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Ok",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.RecordDownload(DownloadRecord{
-		MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Crisis", Failed: true,
+		UserID: 1, MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Crisis", Failed: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := s.ListFailedDownloads(10)
+	got, err := s.ListFailedDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,17 +116,101 @@ func TestListFailedDownloads_OnlyFailedRows(t *testing.T) {
 func TestRecordDownload_RetrySuccessClearsFailed(t *testing.T) {
 	s := newTestStore(t)
 	md5 := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: true}); err != nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Crisis", Failed: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: false}); err != nil {
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Crisis", Failed: false}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.ListDownloads(10)
+	got, err := s.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || got[0].Failed {
 		t.Fatalf("got = %+v, want the retry to clear failed", got)
+	}
+}
+
+func TestRecordDownload_IsolatesPerUser(t *testing.T) {
+	s := newTestStore(t)
+	md5 := "ffffffffffffffffffffffffffffffff"
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Mine"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDownload(DownloadRecord{UserID: 2, MD5: md5, Title: "Theirs"}); err != nil {
+		t.Fatal(err)
+	}
+
+	mine, err := s.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mine) != 1 || mine[0].Title != "Mine" || mine[0].UserID != 1 {
+		t.Fatalf("user 1 = %+v, want only Mine", mine)
+	}
+	theirs, err := s.ListDownloads(2, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(theirs) != 1 || theirs[0].Title != "Theirs" || theirs[0].UserID != 2 {
+		t.Fatalf("user 2 = %+v, want only Theirs", theirs)
+	}
+}
+
+func TestRecordDownload_RejectsMissingUser(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.RecordDownload(DownloadRecord{MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "X"}); err == nil {
+		t.Fatal("RecordDownload without UserID = nil, want error")
+	}
+}
+
+func TestListFailedDownloads_HidesOtherUsers(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.RecordDownload(DownloadRecord{
+		UserID: 1, MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Mine", Failed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDownload(DownloadRecord{
+		UserID: 2, MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Theirs", Failed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.ListFailedDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Title != "Mine" {
+		t.Fatalf("got = %+v, want only Mine", got)
+	}
+}
+
+func TestClaimOrphanDownloads_AssignsUserZeroRows(t *testing.T) {
+	s := newTestStore(t)
+	_, err := s.DB().Exec(
+		`INSERT INTO downloads (user_id, md5, title, author, year, extension, filesize, downloaded_at, failed)
+		 VALUES (0, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'Alice', '', 0, 'fb2', 0, '2026-10-30T13:39:16Z', 0)`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ClaimOrphanDownloads(9); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.ListDownloads(9, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Title != "Alice" || got[0].UserID != 9 {
+		t.Fatalf("got = %+v, want Alice claimed by user 9", got)
+	}
+	orphans, err := s.ListDownloads(0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orphans) != 0 {
+		t.Fatalf("orphans left = %+v", orphans)
 	}
 }

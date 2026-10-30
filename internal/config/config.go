@@ -13,10 +13,11 @@ import (
 
 // Config is the app-owned configuration (not the amarra-cais HTTP config).
 type Config struct {
-	DBPath      string
-	BaseURL     string
-	Cookie      string
-	DownloadDir string
+	DBPath            string
+	BaseURL           string
+	Cookie            string
+	DownloadDir       string
+	HistoryOwnerEmail string
 }
 
 // Load reads LIBGEN_* variables, falling back to local defaults. A ./.env file
@@ -25,11 +26,18 @@ type Config struct {
 func Load() Config {
 	_ = dotenv.LoadFile(".env")
 	return Config{
-		DBPath:      envOr("LIBGEN_DB", "./data/libgen.db"),
-		BaseURL:     envOr("LIBGEN_BASE_URL", libgen.DefaultBaseURL),
-		Cookie:      envOr("LIBGEN_COOKIE", ""),
-		DownloadDir: envOr("LIBGEN_DOWNLOAD_DIR", "downloads"),
+		DBPath:            envOr("LIBGEN_DB", "./data/libgen.db"),
+		BaseURL:           envOr("LIBGEN_BASE_URL", libgen.DefaultBaseURL),
+		Cookie:            envOr("LIBGEN_COOKIE", ""),
+		DownloadDir:       envOr("LIBGEN_DOWNLOAD_DIR", "downloads"),
+		HistoryOwnerEmail: envOr("LIBGEN_HISTORY_OWNER_EMAIL", ""),
 	}
+}
+
+// HistoryOwnerPassword reads the boot secret used to create the cutover
+// account. Kept off Config so logs and boot banners never print it.
+func HistoryOwnerPassword() string {
+	return strings.TrimSpace(os.Getenv("LIBGEN_HISTORY_OWNER_PASSWORD"))
 }
 
 // Client builds the mirror client with the configured session and download

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais"
+	"github.com/puppe1990/amarra-cais/pkg/cais/session"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
@@ -64,7 +65,7 @@ func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
 	t.Cleanup(mirror.Close)
 
 	h := newDownloadHandler(t, mirror.URL)
-	req := httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Clean+Code&ext=pdf", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Clean+Code&ext=pdf", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -78,12 +79,12 @@ func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
 	if strings.Contains(rr.Body.String(), "PDFDATA") {
 		t.Fatal("app response contained the file body; the browser must fetch get.php")
 	}
-	got, err := h.books.ListDownloads(10)
+	got, err := h.books.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Title != "Clean Code" || got[0].Extension != "pdf" || got[0].Failed {
-		t.Fatalf("history = %+v, want Clean Code pdf recorded as a successful click", got)
+	if len(got) != 1 || got[0].Title != "Clean Code" || got[0].Extension != "pdf" || got[0].Failed || got[0].UserID != 1 {
+		t.Fatalf("history = %+v, want Clean Code pdf recorded as a successful click for user 1", got)
 	}
 }
 
@@ -94,7 +95,7 @@ func TestDownloadHandler_HandshakeFailureRedirectsToAdsPage(t *testing.T) {
 	t.Cleanup(mirror.Close)
 
 	h := newDownloadHandler(t, mirror.URL)
-	req := httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -105,12 +106,12 @@ func TestDownloadHandler_HandshakeFailureRedirectsToAdsPage(t *testing.T) {
 	if got := rr.Header().Get("Location"); got != want {
 		t.Fatalf("Location = %q, want the ads.php page so the browser retries with a residential IP", got)
 	}
-	history, err := h.books.ListDownloads(10)
+	history, err := h.books.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(history) != 1 || !history[0].Failed {
-		t.Fatalf("history = %+v, want the click kept and marked failed", history)
+	if len(history) != 1 || !history[0].Failed || history[0].UserID != 1 {
+		t.Fatalf("history = %+v, want the click kept and marked failed for user 1", history)
 	}
 }
 
@@ -135,7 +136,7 @@ func TestDownloadHandler_UnsyncedCDNStaysOnSite(t *testing.T) {
 	t.Cleanup(mirror.Close)
 
 	h := newDownloadHandler(t, mirror.URL)
-	req := httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Crisis+Engineering", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Crisis+Engineering", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -155,11 +156,38 @@ func TestDownloadHandler_UnsyncedCDNStaysOnSite(t *testing.T) {
 	if !strings.Contains(body, "file mirror") && !strings.Contains(body, "espelho de arquivos") {
 		t.Fatalf("body missing the unsynced explanation: %s", body)
 	}
-	got, err := h.books.ListDownloads(10)
+	got, err := h.books.ListDownloads(1, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Title != "Crisis Engineering" || !got[0].Failed {
-		t.Fatalf("history = %+v, want Crisis Engineering kept and marked failed", got)
+	if len(got) != 1 || got[0].Title != "Crisis Engineering" || !got[0].Failed || got[0].UserID != 1 {
+		t.Fatalf("history = %+v, want Crisis Engineering kept and marked failed for user 1", got)
+	}
+}
+
+func TestDownloadHandler_SkipsAnonymousClick(t *testing.T) {
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ads.php" {
+			_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY123">GET</a>`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(mirror.Close)
+
+	h := newDownloadHandler(t, mirror.URL)
+	req := httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Clean+Code", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rr.Code)
+	}
+	got, err := h.books.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("anonymous click leaked into history: %+v", got)
 	}
 }

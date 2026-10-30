@@ -73,6 +73,9 @@ func TestAuth_Login_redirectsWhenAuthenticated(t *testing.T) {
 	if rr.Code != http.StatusSeeOther {
 		t.Errorf("status = %d, want 303", rr.Code)
 	}
+	if rr.Header().Get("Location") != "/" {
+		t.Errorf("Location = %q, want /", rr.Header().Get("Location"))
+	}
 	_ = s
 }
 
@@ -110,8 +113,8 @@ func TestAuth_LoginPost_validCredentials_redirects(t *testing.T) {
 	if rr.Code != http.StatusSeeOther {
 		t.Errorf("status = %d, want 303, body: %s", rr.Code, rr.Body.String())
 	}
-	if rr.Header().Get("Location") != "/dashboard" {
-		t.Errorf("Location = %q, want /dashboard", rr.Header().Get("Location"))
+	if rr.Header().Get("Location") != "/" {
+		t.Errorf("Location = %q, want /", rr.Header().Get("Location"))
 	}
 	foundFlash := false
 	for _, c := range rr.Result().Cookies() {

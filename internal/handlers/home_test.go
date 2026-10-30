@@ -93,6 +93,12 @@ func TestHomeHandler_anonymousHidesAuthChrome(t *testing.T) {
 	if strings.Contains(body, `href="/dashboard"`) {
 		t.Errorf("anonymous page must not link to /dashboard (#208), got: %s", body)
 	}
+	if strings.Contains(body, `href="/downloads"`) {
+		t.Errorf("anonymous page must not link to /downloads, got: %s", body)
+	}
+	if !strings.Contains(body, `href="/signup"`) {
+		t.Errorf("anonymous page must offer signup, got: %s", body)
+	}
 }
 
 func TestHomeHandler_BlankQueryDoesNotListResults(t *testing.T) {

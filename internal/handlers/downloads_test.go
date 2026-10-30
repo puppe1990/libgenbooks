@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais"
+	"github.com/puppe1990/amarra-cais/pkg/cais/session"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
@@ -48,6 +49,7 @@ func TestDownloadsHandler_EmptyState(t *testing.T) {
 func TestDownloadsHandler_ListsRecordedBook(t *testing.T) {
 	h, books := newDownloadsHandler(t)
 	if err := books.RecordDownload(catalog.DownloadRecord{
+		UserID:       1,
 		MD5:          "184c16eae281bf2ebea72eb6d7aa6f6d",
 		Title:        "Clean Code",
 		Author:       "Robert C. Martin",
@@ -58,7 +60,7 @@ func TestDownloadsHandler_ListsRecordedBook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/downloads", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/downloads", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -79,6 +81,7 @@ func TestDownloadsHandler_ListsRecordedBook(t *testing.T) {
 func TestDownloadsHandler_MarksFailedClick(t *testing.T) {
 	h, books := newDownloadsHandler(t)
 	if err := books.RecordDownload(catalog.DownloadRecord{
+		UserID:       1,
 		MD5:          "a219d4fcad87c1cd0ea0a289c50f4883",
 		Title:        "Crisis Engineering",
 		Extension:    "epub",
@@ -88,7 +91,7 @@ func TestDownloadsHandler_MarksFailedClick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/downloads", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/downloads", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -104,11 +107,11 @@ func TestDownloadsHandler_MarksFailedClick(t *testing.T) {
 func TestDownloadsHandler_FiltersFailed(t *testing.T) {
 	h, books := newDownloadsHandler(t)
 	ok := catalog.DownloadRecord{
-		MD5: "184c16eae281bf2ebea72eb6d7aa6f6d", Title: "Clean Code", Extension: "pdf",
+		UserID: 1, MD5: "184c16eae281bf2ebea72eb6d7aa6f6d", Title: "Clean Code", Extension: "pdf",
 		DownloadedAt: time.Date(2026, 10, 30, 13, 0, 0, 0, time.UTC),
 	}
 	fail := catalog.DownloadRecord{
-		MD5: "a219d4fcad87c1cd0ea0a289c50f4883", Title: "Crisis Engineering", Extension: "epub", Failed: true,
+		UserID: 1, MD5: "a219d4fcad87c1cd0ea0a289c50f4883", Title: "Crisis Engineering", Extension: "epub", Failed: true,
 		DownloadedAt: time.Date(2026, 10, 30, 14, 0, 0, 0, time.UTC),
 	}
 	if err := books.RecordDownload(ok); err != nil {
@@ -118,7 +121,7 @@ func TestDownloadsHandler_FiltersFailed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/downloads?failed=1", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/downloads?failed=1", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -137,12 +140,12 @@ func TestDownloadsHandler_FiltersFailed(t *testing.T) {
 func TestDownloadsHandler_FailedFilterEmpty(t *testing.T) {
 	h, books := newDownloadsHandler(t)
 	if err := books.RecordDownload(catalog.DownloadRecord{
-		MD5: "184c16eae281bf2ebea72eb6d7aa6f6d", Title: "Clean Code",
+		UserID: 1, MD5: "184c16eae281bf2ebea72eb6d7aa6f6d", Title: "Clean Code",
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/downloads?failed=1", nil)
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/downloads?failed=1", nil), 1)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
@@ -152,5 +155,31 @@ func TestDownloadsHandler_FailedFilterEmpty(t *testing.T) {
 	}
 	if !strings.Contains(body, "No failed downloads") && !strings.Contains(body, "Nenhum download falhou") {
 		t.Fatalf("body missing empty failed copy: %s", body)
+	}
+}
+
+func TestDownloadsHandler_HidesOtherUsersHistory(t *testing.T) {
+	h, books := newDownloadsHandler(t)
+	if err := books.RecordDownload(catalog.DownloadRecord{
+		UserID: 1, MD5: "184c16eae281bf2ebea72eb6d7aa6f6d", Title: "Clean Code",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := books.RecordDownload(catalog.DownloadRecord{
+		UserID: 2, MD5: "a219d4fcad87c1cd0ea0a289c50f4883", Title: "Crisis Engineering", Failed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/downloads", nil), 1)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "Clean Code") {
+		t.Fatalf("user 1 missing own download: %s", body)
+	}
+	if strings.Contains(body, "Crisis Engineering") {
+		t.Fatalf("user 1 saw another user's download: %s", body)
 	}
 }

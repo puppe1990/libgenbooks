@@ -9,6 +9,7 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais"
 	"github.com/puppe1990/amarra-cais/pkg/cais/i18n"
 	"github.com/puppe1990/amarra-cais/pkg/cais/meta"
+	"github.com/puppe1990/amarra-cais/pkg/cais/session"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
@@ -80,7 +81,12 @@ func (h *DownloadHandler) rememberClick(r *http.Request, md5 string, failed bool
 	if h.books == nil {
 		return
 	}
+	userID, ok := session.UserID(r)
+	if !ok {
+		return
+	}
 	rec := catalog.DownloadRecord{
+		UserID:    userID,
 		MD5:       md5,
 		Title:     strings.TrimSpace(r.URL.Query().Get("title")),
 		Author:    strings.TrimSpace(r.URL.Query().Get("author")),

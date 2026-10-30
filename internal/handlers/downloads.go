@@ -8,6 +8,7 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais"
 	"github.com/puppe1990/amarra-cais/pkg/cais/i18n"
 	"github.com/puppe1990/amarra-cais/pkg/cais/meta"
+	"github.com/puppe1990/amarra-cais/pkg/cais/session"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 )
@@ -39,7 +40,7 @@ func (h *DownloadsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeView(w, r, h.views, h.cfg, "app", "downloads", amarraData(r, h.site, map[string]any{
 		"Title":      h.t(r, "downloads.title"),
 		"ActiveNav":  "downloads",
-		"Books":      h.history(failedOnly),
+		"Books":      h.history(r, failedOnly),
 		"FailedOnly": failedOnly,
 	}), 0)
 }
@@ -48,8 +49,12 @@ func failedDownloadsFilter(r *http.Request) bool {
 	return strings.TrimSpace(r.URL.Query().Get("failed")) == "1"
 }
 
-func (h *DownloadsHandler) history(failedOnly bool) []downloadHistoryItem {
+func (h *DownloadsHandler) history(r *http.Request, failedOnly bool) []downloadHistoryItem {
 	if h.books == nil {
+		return nil
+	}
+	userID, ok := session.UserID(r)
+	if !ok {
 		return nil
 	}
 	var (
@@ -57,9 +62,9 @@ func (h *DownloadsHandler) history(failedOnly bool) []downloadHistoryItem {
 		err     error
 	)
 	if failedOnly {
-		records, err = h.books.ListFailedDownloads(100)
+		records, err = h.books.ListFailedDownloads(userID, 100)
 	} else {
-		records, err = h.books.ListDownloads(100)
+		records, err = h.books.ListDownloads(userID, 100)
 	}
 	if err != nil {
 		return nil
