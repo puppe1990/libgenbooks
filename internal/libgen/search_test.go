@@ -141,3 +141,38 @@ func TestResolveDownload_RejectsBadMD5(t *testing.T) {
 		t.Fatal("ResolveDownload(nope) = nil error, want error")
 	}
 }
+
+func TestResolveDownload_RejectsOffHostGetLink(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<a href="https://evil.example/get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=X">GET</a>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	if _, err := New(srv.URL).ResolveDownload(context.Background(), harryMD5); err == nil {
+		t.Fatal("off-host get.php must be rejected")
+	}
+}
+
+func TestResolveDownload_RetriesAdsPage(t *testing.T) {
+	var adsHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		adsHits++
+		if adsHits == 1 {
+			http.Error(w, "busy", http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=RETRYKEY">GET</a>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	link, err := New(srv.URL).ResolveDownload(context.Background(), harryMD5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adsHits != 2 {
+		t.Fatalf("ads.php hits = %d, want 2", adsHits)
+	}
+	if !strings.Contains(link, "key=RETRYKEY") {
+		t.Fatalf("link = %q, want the retried get.php key", link)
+	}
+}

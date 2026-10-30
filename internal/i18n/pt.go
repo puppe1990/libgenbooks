@@ -65,6 +65,9 @@ var ptMessages = map[string]string{
 	"layout.search_nav":       "Buscar",
 	"download.missing_md5":    "O download precisa do md5 que a busca devolveu.",
 	"download.failed":         "Falha no download: %s",
+	"download.title":          "Baixar",
+	"download.heading":        "Não deu para baixar esse arquivo",
+	"download.back":           "Voltar à busca",
 
 	"dashboard.title":  "Dashboard",
 	"dashboard.env":    "Ambiente:",

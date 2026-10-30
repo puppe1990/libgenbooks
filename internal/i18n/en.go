@@ -65,6 +65,9 @@ var enMessages = map[string]string{
 	"layout.search_nav":       "Search",
 	"download.missing_md5":    "Download needs an md5 from the search results.",
 	"download.failed":         "Download failed: %s",
+	"download.title":          "Download",
+	"download.heading":        "Couldn't fetch that file",
+	"download.back":           "Back to search",
 
 	"dashboard.title":  "Dashboard",
 	"dashboard.env":    "Environment:",

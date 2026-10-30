@@ -158,15 +158,18 @@ func clampSearchLimit(limit int) int {
 	return limit
 }
 
+const adsAttempts = 3
+
 // ResolveDownload follows the ads page for an md5 and returns the signed
-// get.php link that serves the file.
+// get.php link that serves the file. Same-host only, so a poisoned ads.php
+// cannot turn the web 302 into an open redirect.
 func (c *Client) ResolveDownload(ctx context.Context, md5 string) (string, error) {
 	md5 = strings.ToLower(strings.TrimSpace(md5))
 	if len(md5) != 32 || !allHex(md5) {
 		return "", fmt.Errorf("invalid md5 %q: want 32 hex characters", md5)
 	}
 	adsURL := fmt.Sprintf("%s/ads.php?md5=%s", c.BaseURL, md5)
-	body, err := c.get(ctx, adsURL)
+	body, err := c.getAds(ctx, adsURL)
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +177,38 @@ func (c *Client) ResolveDownload(ctx context.Context, md5 string) (string, error
 	if link == "" {
 		return "", fmt.Errorf("libgen: no download mirror for md5 %s (ads page %s)", md5, adsURL)
 	}
+	if !sameHost(c.BaseURL, link) {
+		return "", fmt.Errorf("libgen: get.php host %s is not the mirror %s", link, c.BaseURL)
+	}
 	return link, nil
+}
+
+func (c *Client) getAds(ctx context.Context, adsURL string) ([]byte, error) {
+	var last error
+	for attempt := 1; attempt <= adsAttempts; attempt++ {
+		body, err := c.get(ctx, adsURL)
+		if err == nil {
+			return body, nil
+		}
+		last = err
+		if !retryableFetch(err) {
+			return nil, err
+		}
+	}
+	return nil, last
+}
+
+func retryableFetch(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, code := range []string{"status 500", "status 502", "status 503", "status 429"} {
+		if strings.Contains(msg, code) {
+			return true
+		}
+	}
+	return false
 }
 
 func findGetLink(body []byte, pageURL string) string {

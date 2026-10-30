@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/puppe1990/amarra-cais/pkg/amarra/view"
@@ -44,20 +42,22 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.client.Download(r.Context(), libgen.DownloadRequest{
-		MD5:       md5,
-		Title:     r.URL.Query().Get("title"),
-		Extension: r.URL.Query().Get("ext"),
-	})
+	// The file CDN (booksdl.lc) blocks datacenter IPs. Resolve the signed
+	// get.php URL here and send the browser there, so the download uses the
+	// reader's residential IP instead of the Cleat box.
+	link, err := h.client.ResolveDownload(r.Context(), md5)
 	if err != nil {
-		http.Error(w, h.t(r, "download.failed", err.Error()), http.StatusBadGateway)
+		h.writeDownloadError(w, r, err)
 		return
 	}
-
-	w.Header().Set("Content-Disposition", attachmentDisposition(filepath.Base(result.Path)))
-	http.ServeFile(w, r, result.Path)
+	http.Redirect(w, r, link, http.StatusFound)
 }
 
-func attachmentDisposition(filename string) string {
-	return fmt.Sprintf(`attachment; filename="%s"`, filename)
+func (h *DownloadHandler) writeDownloadError(w http.ResponseWriter, r *http.Request, err error) {
+	writeView(w, r, h.views, h.cfg, "app", "download", amarraData(r, h.site, map[string]any{
+		"Title":     h.t(r, "download.title"),
+		"ActiveNav": "home",
+		"Message":   h.t(r, "download.failed", err.Error()),
+	}), http.StatusOK)
 }
+

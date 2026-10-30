@@ -44,14 +44,15 @@ func TestDownloadHandler_InvalidMD5Is400(t *testing.T) {
 	}
 }
 
-func TestDownloadHandler_StreamsFileFromHandshake(t *testing.T) {
-	payload := []byte("PDFDATA")
+func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
+	var getHits int
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/ads.php":
 			_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY123">GET</a>`))
 		case "/get.php":
-			_, _ = w.Write(payload)
+			getHits++
+			_, _ = w.Write([]byte("PDFDATA"))
 		default:
 			http.NotFound(w, r)
 		}
@@ -63,24 +64,21 @@ func TestDownloadHandler_StreamsFileFromHandshake(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body = %q", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302; body = %q", rr.Code, rr.Body.String())
 	}
-	if rr.Body.String() != string(payload) {
-		t.Fatalf("body = %q, want %q", rr.Body.String(), payload)
+	location := rr.Header().Get("Location")
+	if !strings.Contains(location, "/get.php?") || !strings.Contains(location, "key=KEY123") {
+		t.Fatalf("Location = %q, want the ads.php get.php link", location)
 	}
-	disposition := rr.Header().Get("Content-Disposition")
-	if !strings.Contains(disposition, "attachment") {
-		t.Fatalf("Content-Disposition = %q, want attachment", disposition)
-	}
-	if !strings.Contains(disposition, "clean-code.pdf") {
-		t.Fatalf("Content-Disposition = %q, want clean-code.pdf", disposition)
+	if getHits != 0 {
+		t.Fatalf("get.php hits = %d, want 0 (browser fetches the file, not the app)", getHits)
 	}
 }
 
-func TestDownloadHandler_MirrorFailureIs502(t *testing.T) {
+func TestDownloadHandler_HandshakeFailureShowsPage(t *testing.T) {
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "down", http.StatusBadGateway)
+		http.Error(w, "down", http.StatusInternalServerError)
 	}))
 	t.Cleanup(mirror.Close)
 
@@ -89,8 +87,11 @@ func TestDownloadHandler_MirrorFailureIs502(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadGateway {
-		t.Fatalf("status = %d, want 502; body = %q", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 HTML so Chrome does not swallow the body", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", ct)
 	}
 	if !strings.Contains(rr.Body.String(), "Download failed") {
 		t.Fatalf("body = %q, want download.failed copy", rr.Body.String())
