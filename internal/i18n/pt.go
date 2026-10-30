@@ -69,6 +69,7 @@ var ptMessages = map[string]string{
 	"downloads.lede":            "Livros em que você clicou Baixar, os mais recentes primeiro.",
 	"downloads.empty":           "Nenhum download ainda. Busca um livro e clica em Baixar.",
 	"downloads.col_when":        "Quando",
+	"downloads.failed":          "Download falhou",
 	"download.missing_md5":      "O download precisa do md5 que a busca devolveu.",
 	"download.failed":           "Falha no download: %s",
 	"download.title":            "Baixar",

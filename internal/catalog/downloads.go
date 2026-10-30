@@ -19,6 +19,7 @@ type DownloadRecord struct {
 	Extension    string
 	Filesize     int64
 	DownloadedAt time.Time
+	Failed       bool
 }
 
 // RecordDownload inserts or refreshes a history row for md5.
@@ -31,17 +32,22 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 	if when.IsZero() {
 		when = time.Now().UTC()
 	}
+	failed := 0
+	if rec.Failed {
+		failed = 1
+	}
 	_, err := s.db.Exec(
-		`INSERT INTO downloads (md5, title, author, year, extension, filesize, downloaded_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO downloads (md5, title, author, year, extension, filesize, downloaded_at, failed)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(md5) DO UPDATE SET
 		   title = CASE WHEN excluded.title = '' THEN downloads.title ELSE excluded.title END,
 		   author = CASE WHEN excluded.author = '' THEN downloads.author ELSE excluded.author END,
 		   year = CASE WHEN excluded.year = 0 THEN downloads.year ELSE excluded.year END,
 		   extension = CASE WHEN excluded.extension = '' THEN downloads.extension ELSE excluded.extension END,
 		   filesize = CASE WHEN excluded.filesize = 0 THEN downloads.filesize ELSE excluded.filesize END,
-		   downloaded_at = excluded.downloaded_at`,
-		md5, rec.Title, rec.Author, rec.Year, rec.Extension, rec.Filesize, when.Format(time.RFC3339Nano),
+		   downloaded_at = excluded.downloaded_at,
+		   failed = excluded.failed`,
+		md5, rec.Title, rec.Author, rec.Year, rec.Extension, rec.Filesize, when.Format(time.RFC3339Nano), failed,
 	)
 	if err != nil {
 		return fmt.Errorf("record download %s: %w", md5, err)
@@ -58,7 +64,7 @@ func (s *Store) ListDownloads(limit int) ([]DownloadRecord, error) {
 		limit = maxDownloadHistoryLimit
 	}
 	rows, err := s.db.Query(
-		`SELECT md5, title, author, year, extension, filesize, downloaded_at
+		`SELECT md5, title, author, year, extension, filesize, downloaded_at, failed
 		 FROM downloads
 		 ORDER BY downloaded_at DESC
 		 LIMIT ?`,
@@ -88,11 +94,13 @@ func scanDownloadRow(rows interface {
 }) (DownloadRecord, error) {
 	var rec DownloadRecord
 	var when string
-	if err := rows.Scan(&rec.MD5, &rec.Title, &rec.Author, &rec.Year, &rec.Extension, &rec.Filesize, &when); err != nil {
+	var failed int
+	if err := rows.Scan(&rec.MD5, &rec.Title, &rec.Author, &rec.Year, &rec.Extension, &rec.Filesize, &when, &failed); err != nil {
 		return DownloadRecord{}, fmt.Errorf("scan download: %w", err)
 	}
 	if parsed, err := time.Parse(time.RFC3339Nano, when); err == nil {
 		rec.DownloadedAt = parsed.UTC()
 	}
+	rec.Failed = failed != 0
 	return rec, nil
 }

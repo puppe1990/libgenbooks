@@ -31,6 +31,9 @@
           </td>
           <td class="px-4 py-3">
             <p class="font-serif text-base text-foam">{{ .Title }}</p>
+            {{ if .Failed }}
+            <p class="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-coral">{{ t "downloads.failed" }}</p>
+            {{ end }}
             <p class="mt-1 font-mono text-[10px] tracking-wide text-foam/40">{{ .MD5 }}</p>
           </td>
           <td class="px-4 py-3 text-foam/70">{{ .Author }}</td>

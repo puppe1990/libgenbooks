@@ -69,6 +69,7 @@ var enMessages = map[string]string{
 	"downloads.lede":            "Books you clicked Download on, newest first.",
 	"downloads.empty":           "No downloads yet. Search for a book and click Download.",
 	"downloads.col_when":        "When",
+	"downloads.failed":          "Download failed",
 	"download.missing_md5":      "Download needs an md5 from the search results.",
 	"download.failed":           "Download failed: %s",
 	"download.title":            "Download",

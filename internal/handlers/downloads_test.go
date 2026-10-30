@@ -68,4 +68,32 @@ func TestDownloadsHandler_ListsRecordedBook(t *testing.T) {
 			t.Fatalf("body missing %q", want)
 		}
 	}
+	if strings.Contains(body, "Download failed") || strings.Contains(body, "Download falhou") {
+		t.Fatalf("successful row showed a failed mark: %s", body)
+	}
+}
+
+func TestDownloadsHandler_MarksFailedClick(t *testing.T) {
+	h, books := newDownloadsHandler(t)
+	if err := books.RecordDownload(catalog.DownloadRecord{
+		MD5:          "a219d4fcad87c1cd0ea0a289c50f4883",
+		Title:        "Crisis Engineering",
+		Extension:    "epub",
+		Failed:       true,
+		DownloadedAt: time.Date(2026, 10, 30, 13, 30, 0, 0, time.UTC),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/downloads", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "Crisis Engineering") {
+		t.Fatalf("body missing the clicked title: %s", body)
+	}
+	if !strings.Contains(body, "Download failed") && !strings.Contains(body, "Download falhou") {
+		t.Fatalf("body missing the failed mark: %s", body)
+	}
 }

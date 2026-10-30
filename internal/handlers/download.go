@@ -44,13 +44,12 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, h.t(r, "download.missing_md5"), http.StatusBadRequest)
 		return
 	}
-	h.rememberClick(r, md5)
-
 	// The file CDN (booksdl.lc) blocks datacenter IPs. Resolve the signed
 	// get.php URL here and send the browser there, so the download uses the
 	// reader's residential IP instead of the Cleat box.
 	link, err := h.client.ResolveDownload(r.Context(), md5)
 	if err != nil {
+		h.rememberClick(r, md5, true)
 		if ads := h.client.AdsPageURL(md5); ads != "" {
 			http.Redirect(w, r, ads, http.StatusFound)
 			return
@@ -59,9 +58,11 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.client.GetLinkUnsynced(r.Context(), link) {
+		h.rememberClick(r, md5, true)
 		h.writeUnsynced(w, r, md5)
 		return
 	}
+	h.rememberClick(r, md5, false)
 	http.Redirect(w, r, link, http.StatusFound)
 }
 
@@ -75,7 +76,7 @@ func (h *DownloadHandler) writeUnsynced(w http.ResponseWriter, r *http.Request, 
 	}), http.StatusOK)
 }
 
-func (h *DownloadHandler) rememberClick(r *http.Request, md5 string) {
+func (h *DownloadHandler) rememberClick(r *http.Request, md5 string, failed bool) {
 	if h.books == nil {
 		return
 	}
@@ -84,6 +85,7 @@ func (h *DownloadHandler) rememberClick(r *http.Request, md5 string) {
 		Title:     strings.TrimSpace(r.URL.Query().Get("title")),
 		Author:    strings.TrimSpace(r.URL.Query().Get("author")),
 		Extension: strings.TrimSpace(r.URL.Query().Get("ext")),
+		Failed:    failed,
 	}
 	if year, err := strconv.Atoi(r.URL.Query().Get("year")); err == nil {
 		rec.Year = year

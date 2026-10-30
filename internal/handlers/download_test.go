@@ -82,8 +82,8 @@ func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Title != "Clean Code" || got[0].Extension != "pdf" {
-		t.Fatalf("history = %+v, want Clean Code pdf recorded on click", got)
+	if len(got) != 1 || got[0].Title != "Clean Code" || got[0].Extension != "pdf" || got[0].Failed {
+		t.Fatalf("history = %+v, want Clean Code pdf recorded as a successful click", got)
 	}
 }
 
@@ -104,6 +104,13 @@ func TestDownloadHandler_HandshakeFailureRedirectsToAdsPage(t *testing.T) {
 	want := mirror.URL + "/ads.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d"
 	if got := rr.Header().Get("Location"); got != want {
 		t.Fatalf("Location = %q, want the ads.php page so the browser retries with a residential IP", got)
+	}
+	history, err := h.books.ListDownloads(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 || !history[0].Failed {
+		t.Fatalf("history = %+v, want the click kept and marked failed", history)
 	}
 }
 
@@ -152,7 +159,7 @@ func TestDownloadHandler_UnsyncedCDNStaysOnSite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Title != "Crisis Engineering" {
-		t.Fatalf("history = %+v, want the click recorded even when the CDN is empty", got)
+	if len(got) != 1 || got[0].Title != "Crisis Engineering" || !got[0].Failed {
+		t.Fatalf("history = %+v, want Crisis Engineering kept and marked failed", got)
 	}
 }

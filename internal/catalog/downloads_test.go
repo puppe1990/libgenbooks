@@ -75,3 +75,36 @@ func TestListDownloads_Empty(t *testing.T) {
 		t.Fatalf("len = %d, want 0", len(got))
 	}
 }
+
+func TestRecordDownload_StoresFailed(t *testing.T) {
+	s := newTestStore(t)
+	md5 := "dddddddddddddddddddddddddddddddd"
+	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListDownloads(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !got[0].Failed || got[0].Title != "Crisis" {
+		t.Fatalf("got = %+v, want Crisis marked failed", got)
+	}
+}
+
+func TestRecordDownload_RetrySuccessClearsFailed(t *testing.T) {
+	s := newTestStore(t)
+	md5 := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDownload(DownloadRecord{MD5: md5, Title: "Crisis", Failed: false}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListDownloads(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Failed {
+		t.Fatalf("got = %+v, want the retry to clear failed", got)
+	}
+}

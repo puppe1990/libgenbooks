@@ -59,6 +59,7 @@ func (h *DownloadsHandler) history() []downloadHistoryItem {
 			Year:      rec.Year,
 			Extension: rec.Extension,
 			When:      rec.DownloadedAt.UTC().Format("02/01/2006 15:04"),
+			Failed:    rec.Failed,
 		})
 	}
 	return items
@@ -71,4 +72,5 @@ type downloadHistoryItem struct {
 	Year      int
 	Extension string
 	When      string
+	Failed    bool
 }
