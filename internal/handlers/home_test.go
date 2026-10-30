@@ -139,6 +139,37 @@ func TestHomeHandler_LiveQueryRendersMirrorHits(t *testing.T) {
 	}
 }
 
+func TestHomeHandler_LiveQueryRendersCoverImage(t *testing.T) {
+	fixture, err := os.ReadFile(filepath.Join("..", "libgen", "testdata", "search.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/index.php" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(fixture)
+	}))
+	t.Cleanup(mirror.Close)
+
+	h := newHomeHandlerWith(t, mirror.URL)
+	req := httptest.NewRequest(http.MethodGet, "/?q=harry+potter", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	body := html.UnescapeString(rr.Body.String())
+	if !strings.Contains(body, `<img`) {
+		t.Fatalf("missing cover <img>, got: %s", body)
+	}
+	if !strings.Contains(body, `/cover?md5=184c16eae281bf2ebea72eb6d7aa6f6d`) {
+		t.Fatalf("missing cover proxy src, got: %s", body)
+	}
+	if !strings.Contains(body, `loading="lazy"`) {
+		t.Fatalf("cover img must be lazy-loaded, got: %s", body)
+	}
+}
+
 func TestHomeHandler_MirrorDownFallsBackToCatalog(t *testing.T) {
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "down", http.StatusBadGateway)

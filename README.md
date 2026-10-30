@@ -44,7 +44,7 @@ No npm step: the CLI and MCP are pure Go.
 
 ## Web
 
-`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog) and `GET /download?md5=` streams the file through the same handshake as the CLI.
+`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog). Each hit shows a cover thumbnail via `GET /cover?md5=` (proxied from `ads.php`, cached on disk). `GET /download?md5=` streams the file through the same handshake as the CLI.
 
 ```bash
 amarra-cais dev   # http://localhost:8080

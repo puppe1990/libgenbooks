@@ -28,6 +28,7 @@
     <table class="w-full min-w-[52rem] text-left">
       <thead class="border-b border-foam/10 font-mono text-[10px] uppercase tracking-[0.2em] text-copper">
         <tr>
+          <th class="w-16 px-3 py-3 font-medium">{{ t "home.col_cover" }}</th>
           <th class="px-4 py-3 font-medium">{{ t "home.col_title" }}</th>
           <th class="px-4 py-3 font-medium">{{ t "home.col_author" }}</th>
           <th class="px-4 py-3 font-medium">{{ t "home.col_year" }}</th>
@@ -39,6 +40,11 @@
       <tbody class="text-sm text-foam/85">
         {{ range .Books }}
         <tr class="border-t border-foam/10 align-top">
+          <td class="px-3 py-3">
+            {{ if .MD5 }}
+            <img src="/cover?md5={{ .MD5 }}" alt="{{ .Title }}" width="48" height="64" loading="lazy" class="h-16 w-12 object-cover bg-ink/80 border border-copper/30">
+            {{ end }}
+          </td>
           <td class="px-4 py-3">
             <p class="font-serif text-base text-foam">{{ .Title }}</p>
             <p class="mt-1 font-mono text-[10px] tracking-wide text-foam/40">{{ .MD5 }}</p>
