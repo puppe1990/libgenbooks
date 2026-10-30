@@ -58,7 +58,21 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.writeDownloadError(w, r, err)
 		return
 	}
+	if h.client.GetLinkUnsynced(r.Context(), link) {
+		h.writeUnsynced(w, r, md5)
+		return
+	}
 	http.Redirect(w, r, link, http.StatusFound)
+}
+
+func (h *DownloadHandler) writeUnsynced(w http.ResponseWriter, r *http.Request, md5 string) {
+	writeView(w, r, h.views, h.cfg, "app", "download", amarraData(r, h.site, map[string]any{
+		"Title":     h.t(r, "download.title"),
+		"ActiveNav": "home",
+		"Heading":   h.t(r, "download.unsynced_heading"),
+		"Message":   h.t(r, "download.unsynced"),
+		"AdsURL":    h.client.AdsPageURL(md5),
+	}), http.StatusOK)
 }
 
 func (h *DownloadHandler) rememberClick(r *http.Request, md5 string) {
@@ -107,4 +121,3 @@ func (h *DownloadHandler) writeDownloadError(w http.ResponseWriter, r *http.Requ
 		"Message":   h.t(r, "download.failed", err.Error()),
 	}), http.StatusOK)
 }
-
