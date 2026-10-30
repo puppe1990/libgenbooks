@@ -1,0 +1,5 @@
+{
+  "runtime": "golang",
+  "binaries": ["server"],
+  "memory_max_mb": 256
+}
