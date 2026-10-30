@@ -1,65 +1,69 @@
 # libgen-books
 
-Mini app em Go (Amarra/Cais) para **buscar e baixar livros do Library Genesis** por CLI e por MCP (stdio). O catálogo local em SQLite guarda cada resultado encontrado, então busca offline e `download <título>` continuam funcionando depois.
+Go CLI and [MCP](https://modelcontextprotocol.io) (stdio) server to **search and download books from Library Genesis**. Every live hit is cached in a local SQLite catalog, so later offline search and `download <title>` keep working.
 
-- `libgen-books search` → busca ao vivo no espelho (`libgen.li`) e guarda os hits no catálogo.
-- `libgen-books download` → baixa por id, md5 ou título (handshake anônimo `ads.php` → `get.php`).
-- MCP `libgen_search_books` / `libgen_download_book` → as mesmas duas operações para um agente.
-- `import` → carrega um snapshot SQLite do libgen para busca 100% offline.
-- `dump` → lista e baixa os dumps brutos publicados pelo espelho.
+- `libgen-books search` — live search against the `libgen.li` mirror, then cache the hits.
+- `libgen-books download` — fetch by id, md5, or title (anonymous `ads.php` → `get.php` handshake).
+- MCP `libgen_search_books` / `libgen_download_book` — the same two operations for an agent.
+- `import` — load a SQLite snapshot of the catalog for fully offline search.
+- `dump` — list and download the raw dumps published by the mirror.
 
-## Por que não existe mais `libgen_books.sql`
+Built with [Amarra/Cais](https://github.com/puppe1990/amarra-cais).
 
-O dump único `https://libgen.is/dbdump/libgen_books.sql` (e o espelho `libgen.im`) saiu do ar. Hoje o catálogo principal é publicado em partes de ~1 GiB:
+## Why `libgen_books.sql` is gone
+
+The single-file dump at `https://libgen.is/dbdump/libgen_books.sql` (and the `libgen.im` mirror) is offline. The main catalog now ships as ~1 GiB RAR parts:
 
 ```bash
 libgen-books dump --list          # libgen_new-2026-10-25.part001.rar … part062.rar
-libgen-books dump --part 1        # baixa uma parte para data/dumps/
+libgen-books dump --part 1        # download one part into data/dumps/
 ```
 
-Essas partes são RAR de um dump MySQL (precisam de `unrar` + MySQL). Para o catálogo local deste app, use um snapshot SQLite com tabela `books`:
+Those parts are a MySQL dump (you need `unrar` + MySQL). For this app's local catalog, import a SQLite snapshot with a `books` table:
 
 ```bash
 libgen-books import ./libgen.sqlite3   # id, title, author, year, extension, filesize, md5
 ```
 
-O import lê as colunas por nome, então snapshots com colunas extras também entram.
+Import matches columns by name, so snapshots with extra columns still load.
 
 ## Quick start
 
 ```bash
-cd ferramentas/libgen-books
-cp .env.example .env      # opcional
-go build ./cmd/cli ./cmd/mcp
+git clone https://github.com/puppe1990/libgenbooks.git
+cd libgenbooks
+cp .env.example .env      # optional
+go build -o libgen-books ./cmd/cli
+go build -o libgen-mcp ./cmd/mcp
 
-./cli search "clean code" --limit 5
-./cli download 97889355 --out ~/Downloads/art-of-clean-code.epub
+./libgen-books search "clean code" --limit 5
+./libgen-books download 97889355 --out ~/Downloads/art-of-clean-code.epub
 ```
 
-Sem passo de npm: o CLI e o MCP são Go puro. O servidor HTTP do scaffold continua disponível com `amarra-cais dev` (porta 8080).
+No npm step: the CLI and MCP are pure Go. The scaffold HTTP server is still available with `amarra-cais dev` (port 8080).
 
 ## CLI
 
 ```bash
-libgen-books search <título|autor|isbn> [--limit N] [--local]
-libgen-books download <id|md5|título> [--out caminho] [--url URL]
-libgen-books import [snapshot.sqlite3] [--from caminho]
-libgen-books dump [--list] [--part N] [--out caminho] [--url URL]
+libgen-books search <title|author|isbn> [--limit N] [--local]
+libgen-books download <id|md5|title> [--out path] [--url URL]
+libgen-books import [snapshot.sqlite3] [--from path]
+libgen-books dump [--list] [--part N] [--out path] [--url URL]
 libgen-books help
 ```
 
-Exemplo real:
+Example:
 
 ```
 $ libgen-books search "clean code" --limit 3
-ID         MD5                               TÍTULO                              AUTOR               ANO   EXT   TAMANHO
+ID         MD5                               TITLE                               AUTHOR              YEAR  EXT   SIZE
 102864044  d3848357ae109884a140c7b3662e0e30  Clean Code / Clean coder two books  Robert c Martin     2022  pdf   10 MB
 103904946  976993b85e921f0e0d0f57424e29416f  Clean Code Cookbook Recipes …       Countineri, Max…    2023  pdf   4 MB
 97889355   3e219448bfb3f5f1923c4573faf75102  The Art of Clean Code …             Christian Mayer     2022  epub  2 MB
 ```
 
-`search` usa o espelho ao vivo; se ele cair, cai para o catálogo local. `--local` força o offline.
-`download` aceita o id, o md5 ou o título (resolvido no catálogo que o `search` acabou de preencher). `--url` pula o handshake e baixa um arquivo direto.
+`search` hits the live mirror and falls back to the local catalog if the mirror is down. `--local` forces offline.
+`download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file.
 
 ## MCP (stdio)
 
@@ -67,63 +71,65 @@ ID         MD5                               TÍTULO                            
 go build -o bin/libgen-mcp ./cmd/mcp
 ```
 
-Config no cliente MCP (Claude Desktop, Cursor, Grok):
+Client config (Claude Desktop, Cursor, Grok, OpenCode):
 
 ```json
 {
   "mcpServers": {
     "libgen-books": {
-      "command": "/Users/matheuspuppe/Desktop/Projetos/ferramentas/libgen-books/bin/libgen-mcp",
+      "command": "/absolute/path/to/libgenbooks/bin/libgen-mcp",
       "env": {
-        "LIBGEN_DB": "/Users/matheuspuppe/Desktop/Projetos/ferramentas/libgen-books/data/libgen.db",
-        "LIBGEN_DOWNLOAD_DIR": "/Users/matheuspuppe/Downloads/libgen"
+        "LIBGEN_DB": "/absolute/path/to/libgenbooks/data/libgen.db",
+        "LIBGEN_DOWNLOAD_DIR": "/absolute/path/to/downloads"
       }
     }
   }
 }
 ```
 
-Ferramentas:
+`catalog.Open` creates the parent directory of `LIBGEN_DB` on first run, so the MCP server can start from a working directory outside the app.
 
-| Tool                   | Entrada                               | Saída                                                                                                       |
-| ---------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `libgen_search_books`  | `query`, `limit?`                     | `books[]` (id, md5, título, autor, ano, extensão, tamanho), `count`, `source` (`mirror` ou `local catalog`) |
-| `libgen_download_book` | `ref` (id/md5/título), `url?`, `out?` | `path`, `bytes`, `url` de origem                                                                            |
+Tools:
 
-O servidor fala JSON-RPC em stdin/stdout; logs vão para stderr.
+| Tool                   | Input                                 | Output                                                                                                    |
+| ---------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `libgen_search_books`  | `query`, `limit?`                     | `books[]` (id, md5, title, author, year, extension, size), `count`, `source` (`mirror` or `local catalog`) |
+| `libgen_download_book` | `ref` (id/md5/title), `url?`, `out?`  | `path`, `bytes`, source `url`                                                                             |
 
-## Variáveis de ambiente
+The server speaks JSON-RPC on stdin/stdout; logs go to stderr.
 
-| Variável              | Padrão              | Para quê                                                                         |
+## Environment
+
+| Variable              | Default             | Purpose                                                                          |
 | --------------------- | ------------------- | -------------------------------------------------------------------------------- |
-| `LIBGEN_DB`           | `./data/libgen.db`  | catálogo SQLite local (cache + import)                                           |
-| `LIBGEN_BASE_URL`     | `https://libgen.li` | espelho usado na busca/download                                                  |
-| `LIBGEN_COOKIE`       | vazio               | cookie de sessão para record pages que exigem login (ex.: `libgen.ad/book/<id>`) |
-| `LIBGEN_DOWNLOAD_DIR` | `downloads`         | pasta quando `--out`/`out` é omitido                                             |
+| `LIBGEN_DB`           | `./data/libgen.db`  | local SQLite catalog (cache + import)                                            |
+| `LIBGEN_BASE_URL`     | `https://libgen.li` | mirror used for search/download                                                  |
+| `LIBGEN_COOKIE`       | empty               | session cookie for record pages that require login (e.g. `libgen.ad/book/<id>`)  |
+| `LIBGEN_DOWNLOAD_DIR` | `downloads`         | destination when `--out`/`out` is omitted                                        |
 
-## Stack e layout
+## Stack and layout
 
-Go 1.26, SQLite via `modernc.org/sqlite` (sem CGO), MCP via `github.com/modelcontextprotocol/go-sdk`, scaffold Amarra/Cais (views, Tailwind e servidor HTTP continuam no projeto).
+Go 1.26, SQLite via `modernc.org/sqlite` (no CGO), MCP via `github.com/modelcontextprotocol/go-sdk`, Amarra/Cais scaffold (views, Tailwind, and the HTTP server stay in the tree).
 
 ```
 cmd/cli/            → search, download, import, dump
-cmd/mcp/            → servidor MCP stdio
-internal/libgen/    → cliente do espelho: busca, record page, handshake de download, dumps
-internal/catalog/   → SQLite (books, books_fts, cids), busca FTS5 e import de snapshot
-internal/cache/     → grava hits ao vivo no catálogo
-internal/config/    → variáveis LIBGEN_*
-internal/mcpserver/ → tools MCP
-cmd/server/         → app HTTP do scaffold Amarra
+cmd/mcp/            → stdio MCP server
+internal/libgen/    → mirror client: search, record page, download handshake, dumps
+internal/catalog/   → SQLite (books, books_fts, cids), FTS5 search, snapshot import
+internal/cache/     → persist live hits in the catalog
+internal/config/    → LIBGEN_* variables
+internal/mcpserver/ → MCP tools
+cmd/server/         → Amarra HTTP app
 ```
 
-## Testes
+## Tests
 
 ```bash
 go test ./...
 ```
 
-Testes são headless: SQLite `:memory:`, HTML de fixtures reais do espelho em `internal/libgen/testdata/`, e servidores `httptest` para o handshake de download. Nenhum teste toca a rede.
+Tests are headless: SQLite `:memory:`, real mirror HTML fixtures in `internal/libgen/testdata/`, and `httptest` servers for the download handshake. Nothing on the suite hits the network.
 
-## Uso responsável
+## Responsible use
 
-O app indexa metadados públicos e baixa arquivos do espelho. Respeite direito autoral e a legislação do seu país; use para obras de domínio público, acesso aberto ou materiais que você tem direito de baixar.
+The app indexes public metadata and fetches files from the mirror. Respect copyright and the law where you live; use it for public-domain works, open-access material, or files you have the right to download.
