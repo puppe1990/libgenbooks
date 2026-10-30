@@ -24,6 +24,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	r.Get("/", middleware.RequireAuthFunc("/login", home.ServeHTTP))
 	r.Get("/download", middleware.RequireAuthFunc("/login", download.ServeHTTP))
 	r.Get("/downloads", middleware.RequireAuthFunc("/login", downloads.ServeHTTP))
+	r.Post("/downloads/delete", middleware.RequireAuthFunc("/login", downloads.Delete))
 	r.Get("/cover", middleware.RequireAuthFunc("/login", cover.ServeHTTP))
 	r.Get("/login", auth.Login)
 	r.Post("/login", loginLimit.Middleware(http.HandlerFunc(auth.LoginPost)).ServeHTTP)

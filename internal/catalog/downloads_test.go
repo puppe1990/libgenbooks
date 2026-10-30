@@ -1,9 +1,26 @@
 package catalog
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
+
+func seedDownloads(t *testing.T, s *Store, userID int64, count int, failed bool) {
+	t.Helper()
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < count; i++ {
+		if err := s.RecordDownload(DownloadRecord{
+			UserID:       userID,
+			MD5:          fmt.Sprintf("%032x", i+1),
+			Title:        fmt.Sprintf("Book %02d", i+1),
+			Failed:       failed,
+			DownloadedAt: base.Add(time.Duration(i) * time.Minute),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
 
 func TestRecordDownload_ListsNewestFirst(t *testing.T) {
 	s := newTestStore(t)
@@ -104,7 +121,7 @@ func TestListFailedDownloads_OnlyFailedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.ListFailedDownloads(1, 10)
+	got, err := s.ListDownloadsPage(1, 10, 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,12 +194,101 @@ func TestListFailedDownloads_HidesOtherUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.ListFailedDownloads(1, 10)
+	got, err := s.ListDownloadsPage(1, 10, 0, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || got[0].Title != "Mine" {
 		t.Fatalf("got = %+v, want only Mine", got)
+	}
+}
+
+func TestListDownloadsPage_SlicesNewestFirst(t *testing.T) {
+	s := newTestStore(t)
+	seedDownloads(t, s, 1, 25, false)
+
+	first, err := s.ListDownloadsPage(1, 10, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 10 || first[0].Title != "Book 25" || first[9].Title != "Book 16" {
+		t.Fatalf("first page = %d rows starting %q, want Book 25..Book 16", len(first), first[0].Title)
+	}
+
+	last, err := s.ListDownloadsPage(1, 10, 20, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(last) != 5 || last[0].Title != "Book 05" || last[4].Title != "Book 01" {
+		t.Fatalf("last page = %d rows, want the 5 oldest", len(last))
+	}
+}
+
+func TestCountDownloads_ScopesUserAndFilter(t *testing.T) {
+	s := newTestStore(t)
+	seedDownloads(t, s, 1, 3, false)
+	seedDownloads(t, s, 2, 5, true)
+
+	all, err := s.CountDownloads(1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all != 3 {
+		t.Fatalf("CountDownloads(1, all) = %d, want 3", all)
+	}
+	failed, err := s.CountDownloads(1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed != 0 {
+		t.Fatalf("CountDownloads(1, failed) = %d, want 0", failed)
+	}
+	theirs, err := s.CountDownloads(2, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if theirs != 5 {
+		t.Fatalf("CountDownloads(2, failed) = %d, want 5", theirs)
+	}
+}
+
+func TestDeleteDownload_RemovesOnlyOwnRow(t *testing.T) {
+	s := newTestStore(t)
+	md5 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	if err := s.RecordDownload(DownloadRecord{UserID: 1, MD5: md5, Title: "Mine"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDownload(DownloadRecord{UserID: 2, MD5: md5, Title: "Theirs"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.DeleteDownload(1, md5); err != nil {
+		t.Fatal(err)
+	}
+
+	mine, err := s.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mine) != 0 {
+		t.Fatalf("user 1 history = %+v, want empty", mine)
+	}
+	theirs, err := s.ListDownloads(2, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(theirs) != 1 || theirs[0].Title != "Theirs" {
+		t.Fatalf("user 2 history = %+v, want Theirs untouched", theirs)
+	}
+}
+
+func TestDeleteDownload_RejectsBadInput(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.DeleteDownload(0, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); err == nil {
+		t.Fatal("DeleteDownload without user = nil, want error")
+	}
+	if err := s.DeleteDownload(1, "nope"); err == nil {
+		t.Fatal("DeleteDownload(nope) = nil, want error")
 	}
 }
 
