@@ -8,15 +8,21 @@ import (
 
 	"github.com/puppe1990/amarra-cais/pkg/cais"
 
+	"github.com/puppe1990/libgenbooks/internal/catalog"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
 )
 
 func newDownloadHandler(t *testing.T, baseURL string) *DownloadHandler {
 	t.Helper()
+	books, err := catalog.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = books.Close() })
 	client := libgen.New(baseURL)
 	client.DownloadDir = t.TempDir()
-	return NewDownloadHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, client)
+	return NewDownloadHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books, client)
 }
 
 func TestDownloadHandler_MissingMD5Is400(t *testing.T) {
@@ -73,6 +79,13 @@ func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
 	}
 	if getHits != 0 {
 		t.Fatalf("get.php hits = %d, want 0 (browser fetches the file, not the app)", getHits)
+	}
+	got, err := h.books.ListDownloads(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Title != "Clean Code" || got[0].Extension != "pdf" {
+		t.Fatalf("history = %+v, want Clean Code pdf recorded on click", got)
 	}
 }
 

@@ -5,6 +5,9 @@
 {{- define "icon_home_nav" -}}
 <svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
 {{- end -}}
+{{- define "icon_downloads_nav" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+{{- end -}}
 {{- define "icon_chart_nav" -}}
 <svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
 {{- end -}}
@@ -92,6 +95,8 @@
             </span>
           </a>
           <div class="flex items-center gap-4">
+            <a href="/" class="font-mono text-[10px] uppercase tracking-[0.22em] {{ if eq .ActiveNav "home" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }} transition-colors">{{ t "layout.search_nav" }}</a>
+            <a href="/downloads" class="font-mono text-[10px] uppercase tracking-[0.22em] {{ if eq .ActiveNav "downloads" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }} transition-colors">{{ t "layout.downloads_nav" }}</a>
             <.locale-toggle current="{{ .Locale }}" />
             <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
             <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center border border-copper/40 transition-colors group-hover:border-copper" aria-hidden="true">
@@ -120,6 +125,7 @@
           <!-- nav hook re-syncs active link after Drive morph (#27); SSR ActiveNav stays the first-paint default -->
           <div amarra-hook="nav" data-amarra-nav-on="text-copper" data-amarra-nav-off="text-foam/50 hover:text-foam" class="flex flex-col gap-1">
             <a href="/" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "home" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_home_nav" . }}{{ t "layout.search_nav" }}</a>
+            <a href="/downloads" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "downloads" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_downloads_nav" . }}{{ t "layout.downloads_nav" }}</a>
             <a href="/dashboard" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "dashboard" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_chart_nav" . }}Dashboard</a>
             <!-- cais:nav -->
           </div>
