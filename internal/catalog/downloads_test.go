@@ -91,6 +91,28 @@ func TestRecordDownload_StoresFailed(t *testing.T) {
 	}
 }
 
+func TestListFailedDownloads_OnlyFailedRows(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.RecordDownload(DownloadRecord{
+		MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Ok",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDownload(DownloadRecord{
+		MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Crisis", Failed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.ListFailedDownloads(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Title != "Crisis" || !got[0].Failed {
+		t.Fatalf("got = %+v, want only Crisis", got)
+	}
+}
+
 func TestRecordDownload_RetrySuccessClearsFailed(t *testing.T) {
 	s := newTestStore(t)
 	md5 := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"

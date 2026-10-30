@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/puppe1990/amarra-cais/pkg/amarra/view"
 	"github.com/puppe1990/amarra-cais/pkg/cais"
@@ -34,19 +35,32 @@ func (h *DownloadsHandler) t(r *http.Request, key string, args ...any) string {
 }
 
 func (h *DownloadsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	items := h.history()
+	failedOnly := failedDownloadsFilter(r)
 	writeView(w, r, h.views, h.cfg, "app", "downloads", amarraData(r, h.site, map[string]any{
-		"Title":     h.t(r, "downloads.title"),
-		"ActiveNav": "downloads",
-		"Books":     items,
+		"Title":      h.t(r, "downloads.title"),
+		"ActiveNav":  "downloads",
+		"Books":      h.history(failedOnly),
+		"FailedOnly": failedOnly,
 	}), 0)
 }
 
-func (h *DownloadsHandler) history() []downloadHistoryItem {
+func failedDownloadsFilter(r *http.Request) bool {
+	return strings.TrimSpace(r.URL.Query().Get("failed")) == "1"
+}
+
+func (h *DownloadsHandler) history(failedOnly bool) []downloadHistoryItem {
 	if h.books == nil {
 		return nil
 	}
-	records, err := h.books.ListDownloads(100)
+	var (
+		records []catalog.DownloadRecord
+		err     error
+	)
+	if failedOnly {
+		records, err = h.books.ListFailedDownloads(100)
+	} else {
+		records, err = h.books.ListDownloads(100)
+	}
 	if err != nil {
 		return nil
 	}

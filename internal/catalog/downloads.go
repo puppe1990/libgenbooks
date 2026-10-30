@@ -57,19 +57,28 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 
 // ListDownloads returns history newest-first, at most limit rows.
 func (s *Store) ListDownloads(limit int) ([]DownloadRecord, error) {
+	return s.queryDownloads(limit, false)
+}
+
+// ListFailedDownloads returns only rows marked failed, newest-first.
+func (s *Store) ListFailedDownloads(limit int) ([]DownloadRecord, error) {
+	return s.queryDownloads(limit, true)
+}
+
+func (s *Store) queryDownloads(limit int, failedOnly bool) ([]DownloadRecord, error) {
 	if limit <= 0 {
 		limit = defaultDownloadHistoryLimit
 	}
 	if limit > maxDownloadHistoryLimit {
 		limit = maxDownloadHistoryLimit
 	}
-	rows, err := s.db.Query(
-		`SELECT md5, title, author, year, extension, filesize, downloaded_at, failed
-		 FROM downloads
-		 ORDER BY downloaded_at DESC
-		 LIMIT ?`,
-		limit,
-	)
+	query := `SELECT md5, title, author, year, extension, filesize, downloaded_at, failed
+		 FROM downloads`
+	if failedOnly {
+		query += ` WHERE failed = 1`
+	}
+	query += ` ORDER BY downloaded_at DESC LIMIT ?`
+	rows, err := s.db.Query(query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list downloads: %w", err)
 	}

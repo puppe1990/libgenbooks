@@ -5,6 +5,10 @@
     <p class="font-mono text-[11px] uppercase tracking-[0.32em] text-copper">Library Genesis</p>
     <h1 class="mt-3 font-serif italic text-[clamp(2.4rem,6vw,4.5rem)] leading-[0.9] text-foam">{{ t "downloads.heading" }}</h1>
     <p class="mt-5 max-w-xl text-lg leading-relaxed text-foam/65">{{ t "downloads.lede" }}</p>
+    <nav class="mt-8 flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-[0.18em]" aria-label="{{ t "downloads.filter_label" }}">
+      <a href="/downloads" class="{{ if not .FailedOnly }}text-foam{{ else }}text-foam/45 hover:text-foam{{ end }}">{{ t "downloads.filter_all" }}</a>
+      <a href="/downloads?failed=1" class="{{ if .FailedOnly }}text-coral{{ else }}text-foam/45 hover:text-coral{{ end }}">{{ t "downloads.filter_failed" }}</a>
+    </nav>
   </header>
 
   {{ if .Books }}
@@ -51,7 +55,7 @@
     </table>
   </div>
   {{ else }}
-  <p class="relative mt-10 border border-dashed border-copper/35 px-5 py-8 text-foam/55">{{ t "downloads.empty" }}</p>
+  <p class="relative mt-10 border border-dashed border-copper/35 px-5 py-8 text-foam/55">{{ if .FailedOnly }}{{ t "downloads.empty_failed" }}{{ else }}{{ t "downloads.empty" }}{{ end }}</p>
   {{ end }}
 </section>
 {{ end }}
