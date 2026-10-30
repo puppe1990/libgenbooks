@@ -150,7 +150,7 @@ func (s *Store) FindByRef(ref string) (Book, error) {
 }
 
 // Search runs an FTS5 full-text lookup across title, author and isbn and
-// returns at most limit editions, best match first.
+// returns at most limit editions, newest publication year first.
 func (s *Store) Search(query string, limit int) ([]Book, error) {
 	if limit <= 0 {
 		limit = 20
@@ -160,7 +160,7 @@ func (s *Store) Search(query string, limit int) ([]Book, error) {
 		 FROM books_fts AS f
 		 JOIN books AS b ON b.id = f.rowid
 		 WHERE books_fts MATCH ?
-		 ORDER BY rank
+		 ORDER BY b.year DESC, b.id DESC
 		 LIMIT ?`,
 		ftsQuery(query), limit,
 	)

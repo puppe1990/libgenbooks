@@ -98,6 +98,24 @@ func TestSearch_HitsTheMirrorSearchPage(t *testing.T) {
 	}
 }
 
+func TestSearch_OrdersByNewestYear(t *testing.T) {
+	var seenQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenQuery = r.URL.RawQuery
+		_, _ = w.Write([]byte(`<table><tbody></tbody></table>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	if _, err := New(srv.URL).Search(context.Background(), "clean code", 10); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"order=year", "ordermode=desc"} {
+		if !strings.Contains(seenQuery, want) {
+			t.Fatalf("query %q missing %q", seenQuery, want)
+		}
+	}
+}
+
 func TestResolveDownload_ReadsAdsPage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/ads.php" {

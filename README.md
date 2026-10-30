@@ -44,7 +44,7 @@ No npm step: the CLI and MCP are pure Go.
 
 ## Web
 
-`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog). Each hit shows a cover thumbnail via `GET /cover?md5=` (proxied from `ads.php`, cached on disk). `GET /download?md5=` streams the file through the same handshake as the CLI.
+`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog), newest publication year first. Each hit shows a cover thumbnail via `GET /cover?md5=` (proxied from `ads.php`, cached on disk). `GET /download?md5=` streams the file through the same handshake as the CLI.
 
 ```bash
 amarra-cais dev   # http://localhost:8080
@@ -70,7 +70,7 @@ ID         MD5                               TITLE                              
 97889355   3e219448bfb3f5f1923c4573faf75102  The Art of Clean Code …             Christian Mayer     2022  epub  2 MB
 ```
 
-`search` hits the live mirror and falls back to the local catalog if the mirror is down. `--local` forces offline.
+`search` hits the live mirror (newest year first) and falls back to the local catalog if the mirror is down. `--local` forces offline.
 `download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file.
 
 ## MCP (stdio)

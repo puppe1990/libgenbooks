@@ -97,6 +97,36 @@ func TestStore_Search_ByAuthor(t *testing.T) {
 	}
 }
 
+func TestStore_Search_OrdersNewestYearFirst(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.UpsertBook(Book{ID: 1, Title: "Clean Code", Author: "Robert Martin", Year: 2008, MD5: "old", Searchable: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpsertBook(Book{ID: 2, Title: "Clean Code", Author: "Robert Martin", Year: 2024, MD5: "new", Searchable: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpsertBook(Book{ID: 3, Title: "Clean Code", Author: "Someone", Year: 0, MD5: "none", Searchable: 1}); err != nil {
+		t.Fatal(err)
+	}
+
+	books, err := s.Search("clean code", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(books) != 3 {
+		t.Fatalf("Search = %d books, want 3", len(books))
+	}
+	if books[0].Year != 2024 || books[0].ID != 2 {
+		t.Fatalf("first = %+v, want year 2024", books[0])
+	}
+	if books[1].Year != 2008 {
+		t.Fatalf("second = %+v, want year 2008", books[1])
+	}
+	if books[2].Year != 0 {
+		t.Fatalf("last = %+v, want missing year last", books[2])
+	}
+}
+
 func TestStore_Search_UnknownTerm(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.UpsertBook(Book{ID: 5, Title: "The Silmarillion", Author: "J R R Tolkien", MD5: "h5", Searchable: 1}); err != nil {

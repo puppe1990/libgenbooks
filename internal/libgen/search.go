@@ -40,9 +40,10 @@ var sizeUnits = map[string]int64{
 	"b": 1, "kb": 1000, "mb": 1000 * 1000, "gb": 1000 * 1000 * 1000, "tb": 1000 * 1000 * 1000 * 1000,
 }
 
-// Search queries the mirror's live file search and returns up to limit rows.
-// This is the anonymous path: the search and download pages are public even
-// though libgen.ad gates downloads behind an account.
+// Search queries the mirror's live file search and returns up to limit rows,
+// newest publication year first. This is the anonymous path: the search and
+// download pages are public even though libgen.ad gates downloads behind an
+// account.
 func (c *Client) Search(ctx context.Context, query string, limit int) ([]Entry, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -50,7 +51,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]Entry, 
 	}
 	limit = clampSearchLimit(limit)
 
-	searchURL := fmt.Sprintf("%s/index.php?req=%s&curtab=f&res=%d&page=1",
+	searchURL := fmt.Sprintf("%s/index.php?req=%s&curtab=f&res=%d&page=1&order=year&ordermode=desc",
 		c.BaseURL, url.QueryEscape(query), limit)
 	body, err := c.get(ctx, searchURL)
 	if err != nil {
