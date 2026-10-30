@@ -64,6 +64,7 @@ var ptMessages = map[string]string{
 	"home.minimal.hint":         "Use `amarra-cais g resource <name> --public` para começar.",
 	"layout.search_nav":         "Buscar",
 	"layout.downloads_nav":      "Downloads",
+	"layout.config_nav":         "Configurações",
 	"downloads.title":           "Downloads",
 	"downloads.heading":         "Downloads",
 	"downloads.lede":            "Livros em que você clicou Baixar, os mais recentes primeiro.",
@@ -83,9 +84,12 @@ var ptMessages = map[string]string{
 	"download.try_ads":          "Abrir a página do LibGen",
 	"download.back":             "Voltar à busca",
 
-	"dashboard.title":  "Dashboard",
-	"dashboard.env":    "Ambiente:",
-	"dashboard.locale": "Idioma:",
+	"config.title":                  "Configurações",
+	"config.lede":                   "Trocar a senha encerra as sessões abertas. Entre de novo depois.",
+	"config.current_password_label": "Senha atual",
+	"config.new_password_label":     "Nova senha",
+	"config.password_submit":        "Atualizar senha",
+	"config.wrong_password":         "Senha atual incorreta.",
 
 	"layout.footer":      "Rodando leve no Lightsail",
 	"layout.theme_light": "Modo claro",

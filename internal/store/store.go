@@ -21,12 +21,14 @@ var ErrEmailTaken = errors.New("email already registered")
 
 type Store interface {
 	FindUserByEmail(email string) (models.User, error)
+	FindUser(id int64) (models.User, error)
 	CreateUser(email, passwordHash string) (int64, error)
 	EnsureUser(email, passwordHash string) (int64, error)
 	CreatePasswordResetToken(userID int64) (string, error)
 	ClearPasswordResetTokens(userID int64) error
 	FindPasswordResetUserID(token string) (int64, bool)
 	ResetPasswordWithToken(token, passwordHash string) error
+	ChangePassword(id int64, passwordHash string) error
 	Sessions() session.Store
 	Ping() error
 	DB() *sql.DB

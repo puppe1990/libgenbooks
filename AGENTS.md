@@ -58,7 +58,7 @@ Patch markers (do not remove): `registerRoutes`, `Close() error`, `<!-- cais:nav
 - `libgen.ad/book/<id>` record pages are metadata-only for anonymous users; `LIBGEN_COOKIE` only helps those pages.
 - Tests never hit the network: fixtures in `internal/libgen/testdata/`, HTTP via `httptest`, SQLite `:memory:`.
 - The old single-file `libgen_books.sql` dump is gone; `dump` downloads the multi-part RAR, `import` reads a SQLite snapshot (columns matched by name).
-- Web `/`, `/download`, `/downloads`, `/cover` require a session. History is keyed by `(user_id, md5)`. Boot `LIBGEN_HISTORY_OWNER_EMAIL` claims leftover `user_id=0` rows. CLI/MCP stay local.
+- Web `/`, `/download`, `/downloads`, `/cover`, `/configuracoes` require a session. History is keyed by `(user_id, md5)`. Boot `LIBGEN_HISTORY_OWNER_EMAIL` claims leftover `user_id=0` rows. CLI/MCP stay local. `POST /configuracoes` changes the password, revokes sessions, and signs out.
 
 ## Amarra HTML
 
@@ -67,9 +67,9 @@ Handlers render HTML via `view.Write`:
 ```go
 view.Write(w, r, h.views, view.Page{
   Layout: "app",
-  Name:   "dashboard",
+  Name:   "configuracoes",
   Data: map[string]any{
-    "Title":     h.catalog.T("dashboard.title"),
+    "Title":     h.catalog.T("config.title"),
     "Site":      meta.ForRequest(h.site, r),
     "CSRFToken": csrf.TokenFromRequest(r),
     "Flash":     flashMsg,
@@ -79,7 +79,7 @@ view.Write(w, r, h.views, view.Page{
 // Validation — same page, status 422, `.Errors` on inputs
 // Flash on redirect — cais cookie API only
 flash.Set(w, "notice", "Saved!", cfg.CookieSecure())
-http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+http.Redirect(w, r, "/configuracoes", http.StatusSeeOther)
 ```
 
 Pages define a content block plus kit tags `<.form>` / `<.input>` / `<.button>` / `<.flash />` / `<.locale-toggle />`.

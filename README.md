@@ -46,7 +46,7 @@ No npm step: the CLI and MCP are pure Go.
 
 Sign in or sign up is required. Search, covers, downloads, and download history are per account.
 
-`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog), newest publication year first. Each hit shows a cover thumbnail via `GET /cover?md5=` (proxied from `ads.php`, cached on disk). `GET /download?md5=` 302s the browser to same-host `get.php`. `GET /downloads` lists that user's Baixar clicks (`?failed=1` for failures only).
+`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog), newest publication year first. Each hit shows a cover thumbnail via `GET /cover?md5=` (proxied from `ads.php`, cached on disk). `GET /download?md5=` 302s the browser to same-host `get.php`. `GET /downloads` lists that user's Baixar clicks (`?failed=1` for failures only). `GET /configuracoes` changes the account password; a successful `POST` revokes open sessions and sends the reader back to `/login`.
 
 On boot, `LIBGEN_HISTORY_OWNER_EMAIL` + `LIBGEN_HISTORY_OWNER_PASSWORD` create the cutover account when missing and assign leftover `user_id=0` history rows to it. The password is never logged.
 

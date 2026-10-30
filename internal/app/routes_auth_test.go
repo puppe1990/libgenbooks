@@ -74,6 +74,7 @@ func TestApp_ProtectedRoutesRedirectAnonymous(t *testing.T) {
 		"/downloads",
 		"/download?md5=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		"/cover?md5=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"/configuracoes",
 	}
 	for _, path := range paths {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -127,5 +128,63 @@ func TestApp_SignedInServesHome(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `name="q"`) {
 		t.Fatalf("signed-in home missing search field, got: %s", rr.Body.String())
+	}
+}
+
+func TestApp_DashboardRouteGone(t *testing.T) {
+	a, users := testApp(t)
+	hash, err := session.HashPassword("password12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := users.CreateUser("reader@example.com", hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := users.Sessions().Create(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	req.AddCookie(&http.Cookie{Name: session.DefaultCookieName, Value: token})
+	rr := httptest.NewRecorder()
+	a.Handler().ServeHTTP(rr, req)
+	if rr.Code == http.StatusOK {
+		t.Fatal("/dashboard must not render")
+	}
+	if loc := rr.Header().Get("Location"); loc == "/dashboard" {
+		t.Fatal("/dashboard must not redirect to itself")
+	}
+}
+
+func TestApp_SignedInServesConfiguracoes(t *testing.T) {
+	a, users := testApp(t)
+	hash, err := session.HashPassword("password12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := users.CreateUser("reader@example.com", hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := users.Sessions().Create(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/configuracoes", nil)
+	req.AddCookie(&http.Cookie{Name: session.DefaultCookieName, Value: token})
+	rr := httptest.NewRecorder()
+	a.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, `name="current_password"`) {
+		t.Fatalf("configuracoes missing password form, got: %s", body)
+	}
+	if strings.Contains(body, `href="/dashboard"`) {
+		t.Fatal("signed-in chrome must not link /dashboard")
 	}
 }

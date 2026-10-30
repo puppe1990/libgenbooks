@@ -78,7 +78,7 @@ func TestHomeHandler_ContentType(t *testing.T) {
 }
 
 // #208: a visitor without a session must not be offered app chrome that bounces
-// (Dashboard) or signs out a session that does not exist.
+// (Configurações) or signs out a session that does not exist.
 func TestHomeHandler_anonymousHidesAuthChrome(t *testing.T) {
 	h := newHomeHandler(t)
 
@@ -92,6 +92,9 @@ func TestHomeHandler_anonymousHidesAuthChrome(t *testing.T) {
 	}
 	if strings.Contains(body, `href="/dashboard"`) {
 		t.Errorf("anonymous page must not link to /dashboard (#208), got: %s", body)
+	}
+	if strings.Contains(body, `href="/configuracoes"`) {
+		t.Errorf("anonymous page must not link to /configuracoes (#208), got: %s", body)
 	}
 	if strings.Contains(body, `href="/downloads"`) {
 		t.Errorf("anonymous page must not link to /downloads, got: %s", body)

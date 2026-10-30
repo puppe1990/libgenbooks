@@ -17,6 +17,9 @@ func TestNewCatalog_portuguese(t *testing.T) {
 	if got := c.T("auth.welcome"); got != "Bem-vindo!" {
 		t.Errorf("T(auth.welcome) = %q", got)
 	}
+	if got := c.T("config.title"); got != "Configurações" {
+		t.Errorf("T(config.title) = %q", got)
+	}
 	if c.HTMLLang() != "pt-BR" {
 		t.Errorf("HTMLLang() = %q, want pt-BR", c.HTMLLang())
 	}

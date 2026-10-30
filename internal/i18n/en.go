@@ -64,6 +64,7 @@ var enMessages = map[string]string{
 	"home.minimal.hint":         "Use `amarra-cais g resource <name> --public` to get started.",
 	"layout.search_nav":         "Search",
 	"layout.downloads_nav":      "Downloads",
+	"layout.config_nav":         "Settings",
 	"downloads.title":           "Downloads",
 	"downloads.heading":         "Downloads",
 	"downloads.lede":            "Books you clicked Download on, newest first.",
@@ -83,9 +84,12 @@ var enMessages = map[string]string{
 	"download.try_ads":          "Open the LibGen page",
 	"download.back":             "Back to search",
 
-	"dashboard.title":  "Dashboard",
-	"dashboard.env":    "Environment:",
-	"dashboard.locale": "Locale:",
+	"config.title":                  "Settings",
+	"config.lede":                   "Changing your password signs you out of open sessions. Sign in again afterwards.",
+	"config.current_password_label": "Current password",
+	"config.new_password_label":     "New password",
+	"config.password_submit":        "Update password",
+	"config.wrong_password":         "Current password is incorrect.",
 
 	"layout.footer":      "Running light on Lightsail",
 	"layout.theme_light": "Light mode",

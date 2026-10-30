@@ -15,7 +15,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	download := handlers.NewDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen)
 	downloads := handlers.NewDownloadsHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books)
 	cover := handlers.NewCoverHandler(deps.Libgen)
-	dashboard := handlers.NewDashboardHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)
+	configuracoes := handlers.NewConfiguracoesHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)
 	auth := handlers.NewAuthHandler(deps.Views, deps.Store, deps.Site, deps.Store.Sessions(), cfg, deps.Catalog)
 
 	loginLimit := middleware.NewRateLimiter(10, cfg)
@@ -35,7 +35,8 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	r.Post("/reset-password", resetLimit.Middleware(http.HandlerFunc(auth.ResetPasswordPost)).ServeHTTP)
 	r.Post("/logout", auth.LogoutPost)
 	r.Post("/locale", handlers.PostLocale(cfg))
-	r.Get("/dashboard", middleware.RequireAuthFunc("/login", dashboard.ServeHTTP))
+	r.Get("/configuracoes", middleware.RequireAuthFunc("/login", configuracoes.Get))
+	r.Post("/configuracoes", middleware.RequireAuthFunc("/login", configuracoes.Post))
 }
 
 func registerLiveViews(hub *live.Hub, deps Deps) {
