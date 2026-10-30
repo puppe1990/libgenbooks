@@ -162,13 +162,66 @@ const adsAttempts = 3
 
 // ResolveDownload follows the ads page for an md5 and returns the signed
 // get.php link that serves the file. Same-host only, so a poisoned ads.php
-// cannot turn the web 302 into an open redirect.
+// cannot turn the web 302 into an open redirect. Extra DownloadMirrors are
+// tried when BaseURL's ads.php keeps returning 5xx.
 func (c *Client) ResolveDownload(ctx context.Context, md5 string) (string, error) {
 	md5 = strings.ToLower(strings.TrimSpace(md5))
 	if len(md5) != 32 || !allHex(md5) {
 		return "", fmt.Errorf("invalid md5 %q: want 32 hex characters", md5)
 	}
-	adsURL := fmt.Sprintf("%s/ads.php?md5=%s", c.BaseURL, md5)
+	var last error
+	for _, base := range c.downloadBases() {
+		link, err := c.resolveAds(ctx, base, md5)
+		if err == nil {
+			return link, nil
+		}
+		last = err
+	}
+	if last != nil {
+		return "", last
+	}
+	return "", fmt.Errorf("libgen: no download mirror for md5 %s", md5)
+}
+
+// AdsPageURL is the ads.php landing page the browser can open when the
+// server-side handshake fails. Prefers the first fallback mirror because
+// libgen.li ads.php is the one that 500s.
+func (c *Client) AdsPageURL(md5 string) string {
+	md5 = strings.ToLower(strings.TrimSpace(md5))
+	if len(md5) != 32 || !allHex(md5) {
+		return ""
+	}
+	bases := c.downloadBases()
+	if len(bases) == 0 {
+		return ""
+	}
+	base := bases[0]
+	if len(bases) > 1 {
+		base = bases[1]
+	}
+	return base + "/ads.php?md5=" + md5
+}
+
+func (c *Client) downloadBases() []string {
+	seen := make(map[string]bool)
+	var bases []string
+	add := func(raw string) {
+		raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+		if raw == "" || seen[raw] {
+			return
+		}
+		seen[raw] = true
+		bases = append(bases, raw)
+	}
+	add(c.BaseURL)
+	for _, mirror := range c.DownloadMirrors {
+		add(mirror)
+	}
+	return bases
+}
+
+func (c *Client) resolveAds(ctx context.Context, base, md5 string) (string, error) {
+	adsURL := fmt.Sprintf("%s/ads.php?md5=%s", base, md5)
 	body, err := c.getAds(ctx, adsURL)
 	if err != nil {
 		return "", err
@@ -177,8 +230,8 @@ func (c *Client) ResolveDownload(ctx context.Context, md5 string) (string, error
 	if link == "" {
 		return "", fmt.Errorf("libgen: no download mirror for md5 %s (ads page %s)", md5, adsURL)
 	}
-	if !sameHost(c.BaseURL, link) {
-		return "", fmt.Errorf("libgen: get.php host %s is not the mirror %s", link, c.BaseURL)
+	if !sameHost(base, link) {
+		return "", fmt.Errorf("libgen: get.php host %s is not the mirror %s", link, base)
 	}
 	return link, nil
 }

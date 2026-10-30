@@ -31,6 +31,18 @@ type Client struct {
 	UserAgent string
 	// DownloadDir is where derived filenames land (default "downloads").
 	DownloadDir string
+	// DownloadMirrors are extra ads.php hosts tried after BaseURL returns 5xx.
+	// Empty in unit tests so httptest servers never leak onto the network.
+	DownloadMirrors []string
+}
+
+// DefaultDownloadMirrors are sibling libgen.li frontends. ads.php on .li
+// returns 500 for stretches of scitech hashes; these hosts share the catalog.
+var DefaultDownloadMirrors = []string{
+	"https://libgen.vg",
+	"https://libgen.la",
+	"https://libgen.bz",
+	"https://libgen.gl",
 }
 
 // New builds a client for baseURL (DefaultBaseURL when empty).

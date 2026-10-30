@@ -76,7 +76,7 @@ func TestDownloadHandler_RedirectsToHandshakeLink(t *testing.T) {
 	}
 }
 
-func TestDownloadHandler_HandshakeFailureShowsPage(t *testing.T) {
+func TestDownloadHandler_HandshakeFailureRedirectsToAdsPage(t *testing.T) {
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "down", http.StatusInternalServerError)
 	}))
@@ -87,13 +87,11 @@ func TestDownloadHandler_HandshakeFailureShowsPage(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 HTML so Chrome does not swallow the body", rr.Code)
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302; body = %q", rr.Code, rr.Body.String())
 	}
-	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
-		t.Fatalf("Content-Type = %q, want text/html", ct)
-	}
-	if !strings.Contains(rr.Body.String(), "Download failed") {
-		t.Fatalf("body = %q, want download.failed copy", rr.Body.String())
+	want := mirror.URL + "/ads.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d"
+	if got := rr.Header().Get("Location"); got != want {
+		t.Fatalf("Location = %q, want the ads.php page so the browser retries with a residential IP", got)
 	}
 }

@@ -47,6 +47,10 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// reader's residential IP instead of the Cleat box.
 	link, err := h.client.ResolveDownload(r.Context(), md5)
 	if err != nil {
+		if ads := h.client.AdsPageURL(md5); ads != "" {
+			http.Redirect(w, r, ads, http.StatusFound)
+			return
+		}
 		h.writeDownloadError(w, r, err)
 		return
 	}

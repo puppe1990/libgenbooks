@@ -176,3 +176,36 @@ func TestResolveDownload_RetriesAdsPage(t *testing.T) {
 		t.Fatalf("link = %q, want the retried get.php key", link)
 	}
 }
+
+func TestResolveDownload_FallsBackToNextMirror(t *testing.T) {
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(primary.Close)
+
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=VGKEY">GET</a>`))
+	}))
+	t.Cleanup(fallback.Close)
+
+	client := New(primary.URL)
+	client.DownloadMirrors = []string{fallback.URL}
+	link, err := client.ResolveDownload(context.Background(), harryMD5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fallback.URL + "/get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=VGKEY"
+	if link != want {
+		t.Fatalf("link = %q, want %q", link, want)
+	}
+}
+
+func TestAdsPageURL_UsesFirstFallbackMirror(t *testing.T) {
+	client := New("https://libgen.li")
+	client.DownloadMirrors = []string{"https://libgen.vg", "https://libgen.la"}
+	got := client.AdsPageURL(harryMD5)
+	want := "https://libgen.vg/ads.php?md5=" + harryMD5
+	if got != want {
+		t.Fatalf("AdsPageURL = %q, want %q", got, want)
+	}
+}

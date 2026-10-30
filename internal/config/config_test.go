@@ -40,4 +40,7 @@ func TestLoad_Overrides(t *testing.T) {
 	if client.BaseURL != "https://libgen.ad" || client.Cookie != "lg_session=abc" || client.DownloadDir != "/tmp/books" {
 		t.Errorf("client = %+v", client)
 	}
+	if len(client.DownloadMirrors) == 0 {
+		t.Fatal("DownloadMirrors empty, want sibling libgen hosts for ads.php failover")
+	}
 }

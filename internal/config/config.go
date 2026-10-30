@@ -38,6 +38,7 @@ func (c Config) Client() *libgen.Client {
 	client := libgen.New(c.BaseURL)
 	client.Cookie = c.Cookie
 	client.DownloadDir = c.DownloadDir
+	client.DownloadMirrors = libgen.DefaultDownloadMirrors
 	return client
 }
 
