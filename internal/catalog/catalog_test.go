@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -106,5 +108,21 @@ func TestStore_Search_UnknownTerm(t *testing.T) {
 	}
 	if len(books) != 0 {
 		t.Fatalf("Search(unknown) = %+v, want empty", books)
+	}
+}
+
+func TestOpen_CreatesMissingParentDirectory(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "data", "nested", "libgen.db")
+	s, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open(%s) = %v, want the parent directory to be created", dbPath, err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.UpsertBook(Book{ID: 1, Title: "Dune", Searchable: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		t.Fatalf("catalog file %s missing: %v", dbPath, err)
 	}
 }

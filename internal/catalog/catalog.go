@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais/migrate"
@@ -37,6 +39,9 @@ type Store struct {
 
 // Open opens (creating when missing) the libgen catalog at dsn.
 func Open(dsn string) (*Store, error) {
+	if err := ensureParentDir(dsn); err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("sqlite", caissqlite.DSN(dsn))
 	if err != nil {
 		return nil, fmt.Errorf("open libgen catalog: %w", err)
@@ -53,6 +58,20 @@ func Open(dsn string) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// ensureParentDir creates the directory SQLite needs. A missing ./data is the
+// first-run failure for both the CLI and the MCP server, which starts outside
+// the app directory and has no relative path to lean on.
+func ensureParentDir(dsn string) error {
+	if dsn == "" || dsn == ":memory:" || strings.HasPrefix(dsn, "file:") {
+		return nil
+	}
+	dir := filepath.Dir(dsn)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create catalog directory %s: %w", dir, err)
+	}
+	return nil
+}
 
 func (s *Store) DB() *sql.DB { return s.db }
 
