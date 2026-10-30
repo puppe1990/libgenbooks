@@ -58,6 +58,7 @@ Patch markers (do not remove): `registerRoutes`, `Close() error`, `<!-- cais:nav
 - `libgen.ad/book/<id>` record pages are metadata-only for anonymous users; `LIBGEN_COOKIE` only helps those pages.
 - Tests never hit the network: fixtures in `internal/libgen/testdata/`, HTTP via `httptest`, SQLite `:memory:`.
 - The old single-file `libgen_books.sql` dump is gone; `dump` downloads the multi-part RAR, `import` reads a SQLite snapshot (columns matched by name).
+- Web `/`, `/download`, `/downloads`, `/cover` require a session. History is keyed by `(user_id, md5)`. Boot `LIBGEN_HISTORY_OWNER_EMAIL` claims leftover `user_id=0` rows. CLI/MCP stay local.
 
 ## Amarra HTML
 
