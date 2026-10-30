@@ -59,14 +59,42 @@ func (s *Store) RecordDownload(rec DownloadRecord) error {
 	return nil
 }
 
-// ListDownloads returns this user's history newest-first, at most limit rows.
-func (s *Store) ListDownloads(userID int64, limit int) ([]DownloadRecord, error) {
-	return s.queryDownloads(userID, limit, false)
+// DeleteDownload removes one history row for this user and md5.
+func (s *Store) DeleteDownload(userID int64, md5 string) error {
+	if userID < 1 {
+		return fmt.Errorf("delete download: missing user id")
+	}
+	md5 = strings.ToLower(strings.TrimSpace(md5))
+	if !IsMD5(md5) {
+		return fmt.Errorf("delete download: invalid md5 %q: want 32 hex characters", md5)
+	}
+	if _, err := s.db.Exec(`DELETE FROM downloads WHERE user_id = ? AND md5 = ?`, userID, md5); err != nil {
+		return fmt.Errorf("delete download %s: %w", md5, err)
+	}
+	return nil
 }
 
-// ListFailedDownloads returns this user's failed rows, newest-first.
-func (s *Store) ListFailedDownloads(userID int64, limit int) ([]DownloadRecord, error) {
-	return s.queryDownloads(userID, limit, true)
+// ListDownloads returns this user's history newest-first, at most limit rows.
+func (s *Store) ListDownloads(userID int64, limit int) ([]DownloadRecord, error) {
+	return s.queryDownloads(userID, limit, 0, false)
+}
+
+// ListDownloadsPage returns one page of this user's history, newest-first.
+func (s *Store) ListDownloadsPage(userID int64, limit, offset int, failedOnly bool) ([]DownloadRecord, error) {
+	return s.queryDownloads(userID, limit, offset, failedOnly)
+}
+
+// CountDownloads returns how many history rows this user has.
+func (s *Store) CountDownloads(userID int64, failedOnly bool) (int, error) {
+	query := `SELECT COUNT(*) FROM downloads WHERE user_id = ?`
+	if failedOnly {
+		query += ` AND failed = 1`
+	}
+	var total int
+	if err := s.db.QueryRow(query, userID).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count downloads: %w", err)
+	}
+	return total, nil
 }
 
 // ClaimOrphanDownloads assigns leftover user_id=0 rows (pre-tenant history)
@@ -82,20 +110,23 @@ func (s *Store) ClaimOrphanDownloads(userID int64) error {
 	return nil
 }
 
-func (s *Store) queryDownloads(userID int64, limit int, failedOnly bool) ([]DownloadRecord, error) {
+func (s *Store) queryDownloads(userID int64, limit, offset int, failedOnly bool) ([]DownloadRecord, error) {
 	if limit <= 0 {
 		limit = defaultDownloadHistoryLimit
 	}
 	if limit > maxDownloadHistoryLimit {
 		limit = maxDownloadHistoryLimit
 	}
+	if offset < 0 {
+		offset = 0
+	}
 	query := `SELECT user_id, md5, title, author, year, extension, filesize, downloaded_at, failed
 		 FROM downloads WHERE user_id = ?`
 	if failedOnly {
 		query += ` AND failed = 1`
 	}
-	query += ` ORDER BY downloaded_at DESC LIMIT ?`
-	rows, err := s.db.Query(query, userID, limit)
+	query += ` ORDER BY downloaded_at DESC LIMIT ? OFFSET ?`
+	rows, err := s.db.Query(query, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list downloads: %w", err)
 	}

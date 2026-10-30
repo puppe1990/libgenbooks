@@ -47,6 +47,13 @@
           <td class="px-4 py-3 text-right">
             {{ if .MD5 }}
             <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="inline-flex font-mono text-[10px] uppercase tracking-[0.18em] text-copper hover:text-foam">{{ t "home.download" }}</a>
+            <form action="/downloads/delete" method="post" class="mt-2">
+              {{ csrfField $.CSRFToken }}
+              <input type="hidden" name="md5" value="{{ .MD5 }}" />
+              <input type="hidden" name="page" value="{{ $.Page }}" />
+              {{ if $.FailedOnly }}<input type="hidden" name="failed" value="1" />{{ end }}
+              <button type="submit" class="font-mono text-[10px] uppercase tracking-[0.18em] text-foam/40 hover:text-coral">{{ t "downloads.delete" }}</button>
+            </form>
             {{ end }}
           </td>
         </tr>
@@ -54,6 +61,21 @@
       </tbody>
     </table>
   </div>
+  {{ if gt .TotalPages 1 }}
+  <nav class="relative mt-6 flex flex-wrap items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-[0.18em]" aria-label="{{ t "downloads.page_label" }}">
+    <span>
+      {{ if gt .Page 1 }}
+      <a href="/downloads?page={{ .PrevPage }}{{ if .FailedOnly }}&failed=1{{ end }}" class="text-foam/45 hover:text-foam">← {{ t "downloads.prev" }}</a>
+      {{ end }}
+    </span>
+    <span class="text-copper">{{ t "downloads.page_of" .Page .TotalPages }}</span>
+    <span>
+      {{ if lt .Page .TotalPages }}
+      <a href="/downloads?page={{ .NextPage }}{{ if .FailedOnly }}&failed=1{{ end }}" class="text-foam/45 hover:text-coral">{{ t "downloads.next" }} →</a>
+      {{ end }}
+    </span>
+  </nav>
+  {{ end }}
   {{ else }}
   <p class="relative mt-10 border border-dashed border-copper/35 px-5 py-8 text-foam/55">{{ if .FailedOnly }}{{ t "downloads.empty_failed" }}{{ else }}{{ t "downloads.empty" }}{{ end }}</p>
   {{ end }}
