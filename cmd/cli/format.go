@@ -10,9 +10,9 @@ import (
 
 func printEntries(w io.Writer, entries []libgen.Entry) {
 	table := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(table, "ID\tMD5\tTÍTULO\tAUTOR\tANO\tEXT\tTAMANHO")
+	_, _ = fmt.Fprintln(table, "ID\tMD5\tTÍTULO\tAUTOR\tANO\tEXT\tTAMANHO")
 	for _, entry := range entries {
-		fmt.Fprintf(table, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(table, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			entry.ID,
 			entry.MD5,
 			truncate(entry.Title, 60),

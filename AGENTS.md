@@ -31,24 +31,24 @@ Seeds and fixtures come from `pkg/cais/fakedata` (`Name`, `Title`, `Email`, `Sen
 
 ## Layout
 
-| Path                        | Responsibility                 |
-| --------------------------- | ------------------------------ |
-| `cmd/server/`               | Entry point                    |
-| `cmd/cli/`                  | search, download, import, dump |
-| `cmd/mcp/`                  | MCP stdio server               |
+| Path                        | Responsibility                           |
+| --------------------------- | ---------------------------------------- |
+| `cmd/server/`               | Entry point                              |
+| `cmd/cli/`                  | search, download, import, dump           |
+| `cmd/mcp/`                  | MCP stdio server                         |
 | `internal/libgen/`          | mirror client (search, handshake, dumps) |
-| `internal/catalog/`         | SQLite catalog + FTS5 + snapshot import |
-| `internal/cache/`           | persists live hits in the catalog |
-| `internal/config/`          | `LIBGEN_*` env                 |
-| `internal/mcpserver/`       | MCP tools                      |
-| `internal/app/`             | Bootstrap, `registerRoutes`    |
-| `internal/handlers/`        | HTTP handlers (`view.Write`)   |
-| `internal/store/`           | SQLite + migrations            |
-| `internal/models/`          | Domain structs                 |
-| `web/templates/layouts/`    | Amarra layout (`#amarra-main`) |
-| `web/templates/pages/`      | HTML pages                     |
-| `web/templates/components/` | App component overrides        |
-| `web/static/`               | CSS, `amarra.js`, PWA          |
+| `internal/catalog/`         | SQLite catalog + FTS5 + snapshot import  |
+| `internal/cache/`           | persists live hits in the catalog        |
+| `internal/config/`          | `LIBGEN_*` env                           |
+| `internal/mcpserver/`       | MCP tools                                |
+| `internal/app/`             | Bootstrap, `registerRoutes`              |
+| `internal/handlers/`        | HTTP handlers (`view.Write`)             |
+| `internal/store/`           | SQLite + migrations                      |
+| `internal/models/`          | Domain structs                           |
+| `web/templates/layouts/`    | Amarra layout (`#amarra-main`)           |
+| `web/templates/pages/`      | HTML pages                               |
+| `web/templates/components/` | App component overrides                  |
+| `web/static/`               | CSS, `amarra.js`, PWA                    |
 
 Patch markers (do not remove): `registerRoutes`, `Close() error`, `<!-- cais:nav -->`, `// cais:live-views`.
 

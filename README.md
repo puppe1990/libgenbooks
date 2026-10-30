@@ -85,21 +85,21 @@ Config no cliente MCP (Claude Desktop, Cursor, Grok):
 
 Ferramentas:
 
-| Tool | Entrada | Saída |
-| --- | --- | --- |
-| `libgen_search_books` | `query`, `limit?` | `books[]` (id, md5, título, autor, ano, extensão, tamanho), `count`, `source` (`mirror` ou `local catalog`) |
-| `libgen_download_book` | `ref` (id/md5/título), `url?`, `out?` | `path`, `bytes`, `url` de origem |
+| Tool                   | Entrada                               | Saída                                                                                                       |
+| ---------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `libgen_search_books`  | `query`, `limit?`                     | `books[]` (id, md5, título, autor, ano, extensão, tamanho), `count`, `source` (`mirror` ou `local catalog`) |
+| `libgen_download_book` | `ref` (id/md5/título), `url?`, `out?` | `path`, `bytes`, `url` de origem                                                                            |
 
 O servidor fala JSON-RPC em stdin/stdout; logs vão para stderr.
 
 ## Variáveis de ambiente
 
-| Variável | Padrão | Para quê |
-| --- | --- | --- |
-| `LIBGEN_DB` | `./data/libgen.db` | catálogo SQLite local (cache + import) |
-| `LIBGEN_BASE_URL` | `https://libgen.li` | espelho usado na busca/download |
-| `LIBGEN_COOKIE` | vazio | cookie de sessão para record pages que exigem login (ex.: `libgen.ad/book/<id>`) |
-| `LIBGEN_DOWNLOAD_DIR` | `downloads` | pasta quando `--out`/`out` é omitido |
+| Variável              | Padrão              | Para quê                                                                         |
+| --------------------- | ------------------- | -------------------------------------------------------------------------------- |
+| `LIBGEN_DB`           | `./data/libgen.db`  | catálogo SQLite local (cache + import)                                           |
+| `LIBGEN_BASE_URL`     | `https://libgen.li` | espelho usado na busca/download                                                  |
+| `LIBGEN_COOKIE`       | vazio               | cookie de sessão para record pages que exigem login (ex.: `libgen.ad/book/<id>`) |
+| `LIBGEN_DOWNLOAD_DIR` | `downloads`         | pasta quando `--out`/`out` é omitido                                             |
 
 ## Stack e layout
 

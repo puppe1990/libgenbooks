@@ -189,9 +189,22 @@ func findGetLink(body []byte, pageURL string) string {
 
 func allHex(text string) bool {
 	for _, r := range text {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+		if !isHexDigit(r) {
 			return false
 		}
 	}
 	return true
+}
+
+// isHexDigit spells the class as a switch so the negated compound does not
+// trip staticcheck's De Morgan rewrite.
+func isHexDigit(r rune) bool {
+	switch {
+	case r >= '0' && r <= '9':
+		return true
+	case r >= 'a' && r <= 'f':
+		return true
+	default:
+		return false
+	}
 }

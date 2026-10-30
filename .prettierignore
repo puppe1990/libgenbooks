@@ -6,5 +6,7 @@ data/
 # (amarra-cais pwa rewrites web/static/js) — same exclusion as the pre-commit hook (#55).
 web/templates/
 web/static/
+# Raw mirror HTML kept verbatim as parser fixtures; prettier cannot parse it.
+internal/libgen/testdata/
 package-lock.json
 go.sum

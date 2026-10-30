@@ -41,7 +41,7 @@ func runSearch(ctx context.Context, cfg config.Config, args []string) error {
 	}
 	cacheEntries(cfg, entries)
 	printEntries(os.Stdout, entries)
-	fmt.Fprintf(os.Stdout, "\npara baixar: libgen-books download <%s|md5|título>\n", "id")
+	_, _ = fmt.Fprintf(os.Stdout, "\npara baixar: libgen-books download <%s|md5|título>\n", "id")
 	return nil
 }
 
