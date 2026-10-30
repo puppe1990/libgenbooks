@@ -1,0 +1,193 @@
+{{ define "title" }}libgen-books{{ end }}
+{{ define "description" }}libgen-books — powered by Amarra{{ end }}{{- define "icon_sparkles_md" -}}
+<svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+{{- end -}}
+{{- define "icon_home_nav" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+{{- end -}}
+{{- define "icon_chart_nav" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+{{- end -}}
+{{- define "icon_users_md" -}}
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+{{- end -}}
+{{- define "icon_shield_md" -}}
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+{{- end -}}
+{{- define "icon_logout_nav" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H3m0 0l4-4m-4 4l4 4M9 21h9a2 2 0 002-2V5a2 2 0 00-2-2H9" /></svg>
+{{- end -}}
+{{- define "icon_sun" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
+{{- end -}}
+{{- define "icon_moon" -}}
+<svg class="cais-nav-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
+{{- end -}}
+{{ define "app" }}
+<!doctype html>
+<html lang="{{ htmlLang }}" data-amarra-layout="app">
+  <head>
+    <meta charset="UTF-8" />
+    <script nonce="{{ .CSPNonce }}">
+      try {
+        if (localStorage.getItem("amarra-theme") === "light") document.documentElement.classList.add("light");
+      } catch (e) {}
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    {{ if .CSRFToken }}<meta name="csrf-token" content="{{ .CSRFToken }}" />{{ end }}
+    <title>{{ if .Title }}{{ .Title }} · libgen-books{{ else }}libgen-books{{ end }}</title>
+    <meta name="description" content="libgen-books — powered by Amarra" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="libgen-books" />
+    <meta property="og:title" content="{{ if .Title }}{{ .Title }}{{ else }}libgen-books{{ end }}" />
+    <meta property="og:image" content="{{ absURL .Site.AppURL "/static/og.png" }}" />
+    <meta property="og:locale" content="{{ ogLocale }}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,620&display=swap" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <meta name="theme-color" content="#081318" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="libgen-books" />
+    <link rel="apple-touch-icon" href="/static/icons/icon.png" />
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <script src="/static/js/amarra.js" defer></script>
+  </head>
+  <body class="min-h-screen bg-ink font-sans antialiased text-foam flex flex-col justify-between" data-amarra-shell="{{ if .Site.LoggedIn }}app{{ else }}auth{{ end }}">
+    <div>
+      {{ if .Site.LoggedIn }}
+      <!-- app shell: desktop is the fixed rail; mobile keeps a slim brand + menu bar -->
+      <header class="lg:hidden bg-ink/95 backdrop-blur-sm border-b border-copper/30 sticky top-0 z-40">
+        <div class="px-4 py-3 flex items-center gap-4">
+          <button type="button" id="amarra-sidebar-toggle" class="lg:hidden inline-flex h-11 w-11 items-center justify-center border border-copper/40 text-copper hover:border-copper hover:text-foam transition-colors" aria-label="Menu" aria-controls="amarra-nav" aria-expanded="false" amarra-hook="sidebar" data-amarra-sidebar-target="#amarra-nav">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
+          <a href="/" class="flex items-center gap-3 group">
+            <span class="flex h-9 w-9 items-center justify-center border border-copper/70 text-copper group-hover:bg-copper group-hover:text-ink transition-colors" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 20V8m0 0a3 3 0 116 0v1H5m14 11V9a3 3 0 00-3-3h-3" /></svg>
+            </span>
+            <span>
+              <span class="block font-serif text-xl leading-none tracking-tight text-foam">libgen-books</span>
+              <span class="mt-1 block font-mono text-[10px] uppercase tracking-[0.28em] text-copper/80" title="Cais v{{ .FrameworkVersionFull }}">Amarra v{{ .FrameworkVersion }}</span>
+            </span>
+          </a>
+        </div>
+      </header>
+      {{ end }}
+      {{ if not .Site.LoggedIn }}
+      <!-- auth shell: no sidebar; language, theme and login live in the header -->
+      <header class="bg-ink/95 backdrop-blur-sm border-b border-copper/30 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-3 group">
+            <span class="flex h-9 w-9 items-center justify-center border border-copper/70 text-copper group-hover:bg-copper group-hover:text-ink transition-colors" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 20V8m0 0a3 3 0 116 0v1H5m14 11V9a3 3 0 00-3-3h-3" /></svg>
+            </span>
+            <span>
+              <span class="block font-serif text-xl leading-none tracking-tight text-foam">libgen-books</span>
+              <span class="mt-1 block font-mono text-[10px] uppercase tracking-[0.28em] text-copper/80" title="Cais v{{ .FrameworkVersionFull }}">Amarra v{{ .FrameworkVersion }}</span>
+            </span>
+          </a>
+          <div class="flex items-center gap-4">
+            <.locale-toggle current="{{ .Locale }}" />
+            <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
+            <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center border border-copper/40 transition-colors group-hover:border-copper" aria-hidden="true">
+              <span class="[html.light_&]:hidden">{{ template "icon_sun" . }}</span>
+              <span class="hidden [html.light_&]:block">{{ template "icon_moon" . }}</span>
+            </span>
+            <span data-amarra-theme-label>{{ t "layout.theme_light" }}</span>
+          </button>
+            <a href="/login" class="font-mono text-[10px] uppercase tracking-[0.22em] text-copper hover:text-foam transition-colors">{{ t "auth.login_title" }}</a>
+          </div>
+        </div>
+      </header>
+      {{ end }}
+      {{ if .Site.LoggedIn }}
+      <aside id="amarra-nav" class="bg-ink border-r border-foam/10 fixed left-0 top-[57px] bottom-0 z-30 w-60 -translate-x-full invisible transition-transform data-[amarra-sidebar-open]:translate-x-0 data-[amarra-sidebar-open]:visible lg:translate-x-0 lg:visible lg:top-0">
+        <div class="h-full flex flex-col gap-1 p-3 overflow-y-auto no-scrollbar">
+          <div class="hidden lg:flex pb-3 mb-1 border-b border-foam/10"><a href="/" class="flex items-center gap-3 group">
+            <span class="flex h-9 w-9 items-center justify-center border border-copper/70 text-copper group-hover:bg-copper group-hover:text-ink transition-colors" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 20V8m0 0a3 3 0 116 0v1H5m14 11V9a3 3 0 00-3-3h-3" /></svg>
+            </span>
+            <span>
+              <span class="block font-serif text-xl leading-none tracking-tight text-foam">libgen-books</span>
+              <span class="mt-1 block font-mono text-[10px] uppercase tracking-[0.28em] text-copper/80" title="Cais v{{ .FrameworkVersionFull }}">Amarra v{{ .FrameworkVersion }}</span>
+            </span>
+          </a></div>
+          <!-- nav hook re-syncs active link after Drive morph (#27); SSR ActiveNav stays the first-paint default -->
+          <div amarra-hook="nav" data-amarra-nav-on="text-copper" data-amarra-nav-off="text-foam/50 hover:text-foam" class="flex flex-col gap-1">
+            <a href="/dashboard" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "dashboard" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_chart_nav" . }}Dashboard</a>
+            <!-- cais:nav -->
+          </div>
+          <div class="mt-auto flex flex-col gap-3 border-t border-foam/10 pt-3">
+            <div class="flex items-center justify-between gap-2">
+              <.locale-toggle current="{{ .Locale }}" />
+              <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
+            <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center border border-copper/40 transition-colors group-hover:border-copper" aria-hidden="true">
+              <span class="[html.light_&]:hidden">{{ template "icon_sun" . }}</span>
+              <span class="hidden [html.light_&]:block">{{ template "icon_moon" . }}</span>
+            </span>
+            <span data-amarra-theme-label>{{ t "layout.theme_light" }}</span>
+          </button>
+            </div>
+            <.form action="/logout" method="post">
+              <button type="submit" class="w-full text-left px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 text-foam/50 hover:text-foam">{{ template "icon_logout_nav" . }}{{ t "auth.logout" }}</button>
+            </.form>
+          </div>
+        </div>
+      </aside>
+      {{ end }}
+      <div id="amarra-toast-host" aria-live="polite"></div>
+      <main id="amarra-main" class="flex-grow px-4 sm:px-6 lg:px-8 py-5{{ if .Site.LoggedIn }} lg:ml-60{{ end }}">
+        <.flash />
+        {{ template "content" . }}
+      </main>
+    </div>
+    {{ if not .Site.LoggedIn }}
+    <footer class="mt-auto border-t border-foam/10 py-6 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-foam/40">
+      <p>© 2026 libgen-books · Built with Amarra</p>
+    </footer>
+    {{ end }}
+    {{ if eq .Site.Env "development" }}
+    <script nonce="{{ .CSPNonce }}">
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+        if ("caches" in window) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
+        }
+      }
+      // Dev reload (#340): the server re-parses templates in-process and pings
+      // this stream, so an HTML/CSS edit refreshes the tab without an air
+      // rebuild. Loopback only — the route is localhost-only and the phone on
+      // the LAN URL would just collect 403s. The boot id flips when air
+      // restarts the process for a .go edit; a changed id on reconnect means
+      // the new binary is up, so reload once.
+      (function () {
+        if (!("EventSource" in window)) return;
+        if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+        var es = new EventSource("/_dev/reload");
+        es.addEventListener("reload", function () { location.reload(); });
+        es.addEventListener("boot", function (ev) {
+          var seen = sessionStorage.getItem("amarra-dev-boot");
+          sessionStorage.setItem("amarra-dev-boot", ev.data);
+          if (seen && seen !== ev.data) location.reload();
+        });
+      })();
+    </script>
+    {{ else }}
+    <script nonce="{{ .CSPNonce }}">
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/static/js/sw.js", { scope: "/" });
+      }
+    </script>
+    {{ end }}
+  </body>
+</html>
+{{ end }}
