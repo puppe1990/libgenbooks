@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/amarra/view"
 	"github.com/puppe1990/amarra-cais/pkg/cais"
@@ -17,6 +18,8 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais/meta"
 
 	"github.com/puppe1990/libgenbooks/internal/app"
+	"github.com/puppe1990/libgenbooks/internal/catalog"
+	"github.com/puppe1990/libgenbooks/internal/config"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
 	"github.com/puppe1990/libgenbooks/internal/store"
 	"github.com/puppe1990/libgenbooks/web"
@@ -67,13 +70,13 @@ func run() error {
 }
 
 func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error) {
-	catalog := appi18n.NewCatalog(cfg.Locale)
+	messages := appi18n.NewCatalog(cfg.Locale)
 	catalogs := map[string]*i18n.Catalog{
 		"en": appi18n.NewCatalog("en"),
 		"pt": appi18n.NewCatalog("pt"),
 	}
 
-	views, err := loadViews(cfg, catalog, catalogs)
+	views, err := loadViews(cfg, messages, catalogs)
 	if err != nil {
 		return nil, fmt.Errorf("views: %w", err)
 	}
@@ -87,9 +90,19 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		return nil, fmt.Errorf("store: %w", err)
 	}
 
+	libcfg := config.Load()
+	books, err := catalog.Open(libcfg.DBPath)
+	if err != nil {
+		_ = s.Close()
+		return nil, fmt.Errorf("libgen catalog: %w", err)
+	}
+	client := libcfg.Client()
+	client.HTTP.Timeout = 5 * time.Minute
+
 	staticDir, err := cais.ResolveWebDir("static", cfg.StaticDir)
 	if err != nil {
 		_ = s.Close()
+		_ = books.Close()
 		return nil, err
 	}
 
@@ -98,9 +111,11 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		Store:     s,
 		StaticDir: staticDir,
 		Site:      meta.SiteFrom("libgen-books", cfg.AppURL),
-		Catalog:   catalog,
+		Catalog:   messages,
 		Catalogs:  catalogs,
 		DevReload: devReload,
+		Books:     books,
+		Libgen:    client,
 	})
 }
 

@@ -119,6 +119,7 @@
           </a></div>
           <!-- nav hook re-syncs active link after Drive morph (#27); SSR ActiveNav stays the first-paint default -->
           <div amarra-hook="nav" data-amarra-nav-on="text-copper" data-amarra-nav-off="text-foam/50 hover:text-foam" class="flex flex-col gap-1">
+            <a href="/" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "home" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_home_nav" . }}{{ t "layout.search_nav" }}</a>
             <a href="/dashboard" class="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] transition flex items-center gap-2 flex-shrink-0 {{ if eq .ActiveNav "dashboard" }}text-copper{{ else }}text-foam/50 hover:text-foam{{ end }}">{{ template "icon_chart_nav" . }}Dashboard</a>
             <!-- cais:nav -->
           </div>

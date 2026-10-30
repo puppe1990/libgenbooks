@@ -11,7 +11,8 @@ import (
 )
 
 func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
-	home := handlers.NewHomeHandler(deps.Views, deps.Site, deps.Catalog, cfg)
+	home := handlers.NewHomeHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen)
+	download := handlers.NewDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Libgen)
 	dashboard := handlers.NewDashboardHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)
 	auth := handlers.NewAuthHandler(deps.Views, deps.Store, deps.Site, deps.Store.Sessions(), cfg, deps.Catalog)
 
@@ -19,6 +20,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	resetLimit := middleware.NewRateLimiter(10, cfg)
 
 	r.Get("/", home.ServeHTTP)
+	r.Get("/download", download.ServeHTTP)
 	r.Get("/login", auth.Login)
 	r.Post("/login", loginLimit.Middleware(http.HandlerFunc(auth.LoginPost)).ServeHTTP)
 	r.Get("/signup", auth.SignUp)

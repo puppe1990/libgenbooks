@@ -1,41 +1,65 @@
 {{ define "content" }}
-<section class="amarra-grain relative isolate overflow-hidden min-h-[calc(100vh-12rem)] -mx-4 sm:-mx-6 lg:-mx-8 -my-5 px-6 sm:px-10 lg:px-14 py-16 md:py-24">
-  <div class="pointer-events-none absolute -top-24 left-[12%] h-80 w-80 rounded-full bg-coral/25 blur-3xl amarra-lantern"></div>
-  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_-10%,rgba(31,139,163,0.22),transparent_42%),radial-gradient(ellipse_at_100%_110%,rgba(11,47,58,0.55),transparent_50%)]"></div>
-  <svg class="pointer-events-none absolute right-[-6%] top-4 hidden h-[28rem] w-[28rem] text-copper/15 lg:block" viewBox="0 0 200 200" fill="none" aria-hidden="true">
-    <circle cx="100" cy="100" r="78" stroke="currentColor" stroke-width="0.6"></circle>
-    <circle cx="100" cy="100" r="52" stroke="currentColor" stroke-width="0.6"></circle>
-    <path d="M100 22v156M22 100h156" stroke="currentColor" stroke-width="0.4"></path>
-    <rect x="86" y="68" width="28" height="72" rx="4" stroke="currentColor" stroke-width="1.5"></rect>
-    <path d="M76 92h48M76 108h48" stroke="currentColor" stroke-width="2.2"></path>
-  </svg>
-  <div class="relative mx-auto max-w-6xl grid items-end gap-14 lg:grid-cols-12">
-    <div class="lg:col-span-7">
-      <p class="amarra-rise font-mono text-[11px] uppercase tracking-[0.32em] text-copper">{{ t "home.berth_label" }}</p>
-      <h1 class="amarra-rise amarra-rise-delay-1 mt-5 font-serif italic text-[clamp(2.75rem,7vw,6.25rem)] leading-[0.88] text-foam">{{ t "home.rails_heading" }}</h1>
-      <p data-testid="amarra-ready" class="amarra-rise amarra-rise-delay-2 mt-8 max-w-md text-lg leading-relaxed text-foam/65">{{ t "home.rails_subtitle" .Site.AppName }}</p>
-      <div class="amarra-rise amarra-rise-delay-3 mt-10 flex flex-wrap items-center gap-6">
-        <a href="/login" class="inline-flex items-center gap-2 bg-copper px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.22em] text-ink hover:bg-foam transition-colors">{{ t "home.cta_board" }}</a>
-      </div>
-      <div class="amarra-rise amarra-rise-delay-4 mt-14 flex items-center gap-4 text-copper/50">
-        <span class="h-px w-16 bg-copper/60"></span>
-        <span class="font-mono text-[10px] uppercase tracking-[0.35em]">{{ t "home.tide_mark" }}</span>
-      </div>
-    </div>
-    <aside class="lg:col-span-5 amarra-rise amarra-rise-delay-2">
-      <div class="border border-copper/45 bg-ink/70 p-7 shadow-[10px_10px_0_0_rgba(31,139,163,0.22)]">
-        <p class="font-mono text-[10px] uppercase tracking-[0.26em] text-copper">{{ t "home.manifest_label" }}</p>
-        <p class="mt-3 font-serif text-3xl text-foam">{{ .Site.AppName }}</p>
-        <p class="mt-1 font-mono text-xs text-foam/45">{{ t "home.stack" }}</p>
-        <ol class="mt-7 space-y-3 font-mono text-[12px] text-foam/75">
-          <li><span class="text-copper">01 —</span> {{ t "home.step_resource" }}</li>
-          <li><span class="text-copper">02 —</span> {{ t "home.step_dev" }}</li>
-          <li><span class="text-copper">03 —</span> {{ t "home.step_docs" }}</li>
-        </ol>
-        <pre class="mt-7 whitespace-pre-wrap break-words border-t border-foam/10 pt-4 font-mono text-[11px] leading-relaxed text-copper">amarra-cais g resource bookmark
---fields title:string --public</pre>
-      </div>
-    </aside>
+<section class="relative isolate mx-auto w-full max-w-6xl">
+  <div class="pointer-events-none absolute -top-16 left-[8%] h-64 w-64 rounded-full bg-coral/20 blur-3xl amarra-lantern"></div>
+  <header class="relative">
+    <p class="font-mono text-[11px] uppercase tracking-[0.32em] text-copper">Library Genesis</p>
+    <h1 class="mt-3 font-serif italic text-[clamp(2.4rem,6vw,4.5rem)] leading-[0.9] text-foam">{{ t "home.heading" }}</h1>
+    <p data-testid="amarra-ready" class="mt-5 max-w-xl text-lg leading-relaxed text-foam/65">{{ t "home.lede" }}</p>
+  </header>
+
+  <form method="get" action="/" role="search" class="relative mt-10 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+    <label class="sr-only" for="q">{{ t "home.search_label" }}</label>
+    <input id="q" name="q" type="search" value="{{ .Query }}" placeholder="{{ t "home.search_placeholder" }}" autocomplete="off" class="min-h-12 w-full border border-copper/45 bg-ink/80 px-4 font-serif text-lg text-foam placeholder:text-foam/35 focus:border-copper focus:outline-none" />
+    <button type="submit" class="inline-flex items-center justify-center bg-copper px-6 py-3 font-mono text-[11px] uppercase tracking-[0.22em] text-ink hover:bg-foam transition-colors sm:min-w-[9rem]">{{ t "home.search_submit" }}</button>
+  </form>
+
+  {{ if .Searched }}
+  <div class="relative mt-8 flex flex-wrap items-baseline justify-between gap-3 border-b border-foam/10 pb-3">
+    <p class="font-mono text-[11px] uppercase tracking-[0.22em] text-copper">{{ t "home.results_count" (len .Books) }}</p>
+    {{ if .Source }}
+    <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-foam/45">{{ t "home.results_source" .Source }}</p>
+    {{ end }}
   </div>
+  {{ if .Hint }}
+  <p class="mt-3 text-sm text-foam/55">{{ .Hint }}</p>
+  {{ end }}
+  {{ if .Books }}
+  <div class="relative mt-4 overflow-x-auto border border-copper/35 bg-ink/70 shadow-[10px_10px_0_0_rgba(31,139,163,0.18)]">
+    <table class="w-full min-w-[52rem] text-left">
+      <thead class="border-b border-foam/10 font-mono text-[10px] uppercase tracking-[0.2em] text-copper">
+        <tr>
+          <th class="px-4 py-3 font-medium">{{ t "home.col_title" }}</th>
+          <th class="px-4 py-3 font-medium">{{ t "home.col_author" }}</th>
+          <th class="px-4 py-3 font-medium">{{ t "home.col_year" }}</th>
+          <th class="px-4 py-3 font-medium">{{ t "home.col_ext" }}</th>
+          <th class="px-4 py-3 font-medium">{{ t "home.col_size" }}</th>
+          <th class="px-4 py-3 font-medium"></th>
+        </tr>
+      </thead>
+      <tbody class="text-sm text-foam/85">
+        {{ range .Books }}
+        <tr class="border-t border-foam/10 align-top">
+          <td class="px-4 py-3">
+            <p class="font-serif text-base text-foam">{{ .Title }}</p>
+            <p class="mt-1 font-mono text-[10px] tracking-wide text-foam/40">{{ .MD5 }}</p>
+          </td>
+          <td class="px-4 py-3 text-foam/70">{{ .Author }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-foam/70">{{ if .Year }}{{ .Year }}{{ else }}—{{ end }}</td>
+          <td class="px-4 py-3 font-mono text-xs uppercase text-copper">{{ .Extension }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-foam/70">{{ if .FilesizeText }}{{ .FilesizeText }}{{ end }}</td>
+          <td class="px-4 py-3 text-right">
+            {{ if .MD5 }}
+            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}" data-amarra-skip class="inline-flex font-mono text-[10px] uppercase tracking-[0.18em] text-copper hover:text-foam">{{ t "home.download" }}</a>
+            {{ end }}
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ else }}
+  <p class="relative mt-8 border border-dashed border-copper/35 px-5 py-8 text-foam/55">{{ t "home.results_empty" }}</p>
+  {{ end }}
+  {{ end }}
 </section>
 {{ end }}

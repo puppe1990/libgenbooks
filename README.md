@@ -40,7 +40,15 @@ go build -o libgen-mcp ./cmd/mcp
 ./libgen-books download 97889355 --out ~/Downloads/art-of-clean-code.epub
 ```
 
-No npm step: the CLI and MCP are pure Go. The scaffold HTTP server is still available with `amarra-cais dev` (port 8080).
+No npm step: the CLI and MCP are pure Go.
+
+## Web
+
+`GET /?q=` searches the live `libgen.li` mirror (then the local SQLite catalog) and `GET /download?md5=` streams the file through the same handshake as the CLI.
+
+```bash
+amarra-cais dev   # http://localhost:8080
+```
 
 ## CLI
 

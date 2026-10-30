@@ -19,7 +19,9 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais/middleware"
 	"github.com/puppe1990/amarra-cais/pkg/cais/netutil"
 
+	"github.com/puppe1990/libgenbooks/internal/catalog"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
+	"github.com/puppe1990/libgenbooks/internal/libgen"
 	"github.com/puppe1990/libgenbooks/internal/store"
 )
 
@@ -35,11 +37,14 @@ type Deps struct {
 	// DevReload is the development-only SSE hub that tells open tabs a template
 	// or stylesheet changed. Nil in production and in tests (#340).
 	DevReload *devreload.Hub
+	Books     *catalog.Store
+	Libgen    *libgen.Client
 }
 
 type App struct {
 	config cais.Config
 	store  store.Store
+	books  *catalog.Store
 	router *cais.Router
 	server *http.Server
 }
@@ -95,13 +100,14 @@ func New(cfg cais.Config, deps Deps) (*App, error) {
 	return &App{
 		config: cfg,
 		store:  deps.Store,
+		books:  deps.Books,
 		router: r,
 		server: &http.Server{
 			Addr:              cfg.Port,
 			Handler:           r,
 			ReadHeaderTimeout: 10 * time.Second,
 			ReadTimeout:       30 * time.Second,
-			WriteTimeout:      30 * time.Second,
+			WriteTimeout:      5 * time.Minute,
 			IdleTimeout:       60 * time.Second,
 		},
 	}, nil
@@ -140,17 +146,26 @@ func (a *App) RunContext(ctx context.Context) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := a.server.Shutdown(shutdownCtx); err != nil {
-			_ = a.store.Close()
+			a.closeStores()
 			return err
 		}
 		<-errCh
-		_ = a.store.Close()
+		a.closeStores()
 		return nil
 	case err := <-errCh:
-		_ = a.store.Close()
+		a.closeStores()
 		if err == http.ErrServerClosed {
 			return nil
 		}
 		return err
+	}
+}
+
+func (a *App) closeStores() {
+	if a.store != nil {
+		_ = a.store.Close()
+	}
+	if a.books != nil {
+		_ = a.books.Close()
 	}
 }
