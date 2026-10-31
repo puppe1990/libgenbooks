@@ -1,20 +1,35 @@
 {{ define "content" }}
-<section class="relative isolate mx-auto w-full max-w-6xl">
-  <div class="pointer-events-none absolute -top-16 left-[8%] h-64 w-64 rounded-full bg-coral/20 blur-3xl amarra-lantern"></div>
-  <header class="relative">
-    <p class="font-mono text-[11px] uppercase tracking-[0.32em] text-copper">Library Genesis</p>
-    <h1 class="mt-3 font-serif italic text-[clamp(2.4rem,6vw,4.5rem)] leading-[0.9] text-foam">{{ t "home.heading" }}</h1>
-    <p data-testid="amarra-ready" class="mt-5 max-w-xl text-lg leading-relaxed text-foam/65">{{ t "home.lede" }}</p>
+<section class="library-page">
+  <header class="page-heading">
+    <p class="eyebrow">Library Genesis</p>
+    <h1 class="page-title">{{ t "home.heading" }}</h1>
+    <p data-testid="amarra-ready" class="page-lede">{{ t "home.lede" }}</p>
   </header>
 
-  <form method="get" action="/" role="search" class="relative mt-10 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+  <form method="get" action="/" role="search" class="search-form">
     <label class="sr-only" for="q">{{ t "home.search_label" }}</label>
-    <input id="q" name="q" type="search" value="{{ .Query }}" placeholder="{{ t "home.search_placeholder" }}" autocomplete="off" class="min-h-12 w-full border border-copper/45 bg-ink/80 px-4 font-serif text-lg text-foam placeholder:text-foam/35 focus:border-copper focus:outline-none" />
-    <button type="submit" class="inline-flex items-center justify-center bg-copper px-6 py-3 font-mono text-[11px] uppercase tracking-[0.22em] text-ink hover:bg-foam transition-colors sm:min-w-[9rem]">{{ t "home.search_submit" }}</button>
+    <input id="q" name="q" type="search" value="{{ .Query }}" placeholder="{{ t "home.search_placeholder" }}" autocomplete="off" aria-describedby="search-help" class="search-input" />
+    <button type="submit" class="search-submit">{{ t "home.search_submit" }}</button>
   </form>
+  <p id="search-help" class="search-help">{{ t "home.search_help" }}</p>
+
+  {{ if not .Searched }}
+  <div class="search-start">
+    <div class="search-start-heading">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true"><path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v15" /></svg>
+      <h2>{{ t "home.start_heading" }}</h2>
+    </div>
+    <p>{{ t "home.start_help" }}</p>
+    <div class="search-examples" aria-label="{{ t "home.examples_label" }}">
+      <a href="/?q=Jane+Austen">Jane Austen <span aria-hidden="true">↗</span></a>
+      <a href="/?q=astronomy">{{ t "home.example_astronomy" }} <span aria-hidden="true">↗</span></a>
+      <a href="/?q=design">Design <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+  {{ end }}
 
   {{ if .Searched }}
-  <div class="relative mt-8 flex flex-wrap items-baseline justify-between gap-3 border-b border-foam/10 pb-3">
+  <div class="results-summary">
     <p class="font-mono text-[11px] uppercase tracking-[0.22em] text-copper">{{ t "home.results_count" (len .Books) }}</p>
     {{ if .Source }}
     <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-foam/45">{{ t "home.results_source" .Source }}</p>
@@ -24,38 +39,38 @@
   <p class="mt-3 text-sm text-foam/55">{{ .Hint }}</p>
   {{ end }}
   {{ if .Books }}
-  <div class="relative mt-4 overflow-x-auto border border-copper/35 bg-ink/70 shadow-[10px_10px_0_0_rgba(31,139,163,0.18)]">
-    <table class="w-full min-w-[52rem] text-left">
+  <div class="book-list">
+    <table class="book-table">
+      <caption class="sr-only">{{ t "home.results_count" (len .Books) }}</caption>
       <thead class="border-b border-foam/10 font-mono text-[10px] uppercase tracking-[0.2em] text-copper">
         <tr>
-          <th class="w-16 px-3 py-3 font-medium">{{ t "home.col_cover" }}</th>
-          <th class="px-4 py-3 font-medium">{{ t "home.col_title" }}</th>
-          <th class="px-4 py-3 font-medium">{{ t "home.col_author" }}</th>
-          <th class="px-4 py-3 font-medium">{{ t "home.col_year" }}</th>
-          <th class="px-4 py-3 font-medium">{{ t "home.col_ext" }}</th>
-          <th class="px-4 py-3 font-medium">{{ t "home.col_size" }}</th>
-          <th class="px-4 py-3 font-medium"></th>
+          <th scope="col" class="w-16 px-3 py-3 font-medium">{{ t "home.col_cover" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium">{{ t "home.col_title" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium">{{ t "home.col_author" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium">{{ t "home.col_year" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium">{{ t "home.col_ext" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium">{{ t "home.col_size" }}</th>
+          <th scope="col" class="px-4 py-3 font-medium"><span class="sr-only">{{ t "home.actions" }}</span></th>
         </tr>
       </thead>
       <tbody class="text-sm text-foam/85">
         {{ range .Books }}
         <tr class="border-t border-foam/10 align-top">
-          <td class="px-3 py-3">
+          <td class="book-cover-cell">
             {{ if .MD5 }}
-            <img src="/cover?md5={{ .MD5 }}" alt="{{ .Title }}" width="48" height="64" loading="lazy" class="h-16 w-12 object-cover bg-ink/80 border border-copper/30">
+            <img src="/cover?md5={{ .MD5 }}" alt="{{ .Title }}" width="48" height="64" loading="lazy" class="book-cover">
             {{ end }}
           </td>
-          <td class="px-4 py-3">
-            <p class="font-serif text-base text-foam">{{ .Title }}</p>
-            <p class="mt-1 font-mono text-[10px] tracking-wide text-foam/40">{{ .MD5 }}</p>
+          <td class="book-title-cell">
+            <p class="book-title">{{ .Title }}</p>
           </td>
-          <td class="px-4 py-3 text-foam/70">{{ .Author }}</td>
-          <td class="px-4 py-3 font-mono text-xs text-foam/70">{{ if .Year }}{{ .Year }}{{ else }}—{{ end }}</td>
-          <td class="px-4 py-3 font-mono text-xs uppercase text-copper">{{ .Extension }}</td>
-          <td class="px-4 py-3 font-mono text-xs text-foam/70">{{ if .FilesizeText }}{{ .FilesizeText }}{{ end }}</td>
-          <td class="px-4 py-3 text-right">
+          <td class="book-author">{{ .Author }}</td>
+          <td class="book-meta">{{ if .Year }}{{ .Year }}{{ else }}—{{ end }}</td>
+          <td class="book-format">{{ .Extension }}</td>
+          <td class="book-meta">{{ if .FilesizeText }}{{ .FilesizeText }}{{ end }}</td>
+          <td class="book-actions">
             {{ if .MD5 }}
-            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="inline-flex font-mono text-[10px] uppercase tracking-[0.18em] text-copper hover:text-foam">{{ t "home.download" }}</a>
+            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ t "home.download" }}<span class="sr-only">: {{ .Title }}</span></a>
             {{ end }}
           </td>
         </tr>
@@ -64,7 +79,7 @@
     </table>
   </div>
   {{ else }}
-  <p class="relative mt-8 border border-dashed border-copper/35 px-5 py-8 text-foam/55">{{ t "home.results_empty" }}</p>
+  <div class="empty-state"><h2>{{ t "home.results_empty" }}</h2><p>{{ t "home.empty_help" }}</p></div>
   {{ end }}
   {{ end }}
 </section>
