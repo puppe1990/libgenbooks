@@ -1,0 +1,21 @@
+{{ define "auth-intro" }}
+<section class="auth-intro" aria-labelledby="auth-intro-title">
+  <p class="eyebrow">Library Genesis</p>
+  <h2 id="auth-intro-title">{{ t "auth.intro_heading" }}</h2>
+  <p class="auth-intro-copy">{{ t "auth.intro_copy" }}</p>
+  <div class="book-illustration" aria-hidden="true">
+    <svg viewBox="0 0 440 225" fill="none">
+      <path d="m62 160 165-34 151 44-166 37z" fill="currentColor" fill-opacity=".08" />
+      <path d="m62 145 165-34 151 44v15l-166 37-150-47z" stroke="currentColor" stroke-width="1.5" />
+      <path d="m62 145 150 47 166-37M212 192v15M82 157l130 40 145-32" stroke="currentColor" stroke-opacity=".5" />
+      <path d="M83 128 214 91l140 39v18l-139 34-132-39z" fill="var(--library-surface)" stroke="currentColor" stroke-width="1.5" />
+      <path d="m83 128 132 39 139-37M215 167v15M101 141l114 34 122-30" stroke="currentColor" stroke-opacity=".5" />
+      <path d="M215 154c-33-28-79-44-137-44V37c58 0 104 16 137 44 33-28 79-44 137-44v73c-58 0-104 16-137 44Z" fill="var(--library-surface)" stroke="currentColor" stroke-width="1.5" />
+      <path d="M215 81v73M92 24c54 2 94 18 123 44 29-26 69-42 123-44v73c-54 2-94 18-123 44-29-26-69-42-123-44V24Z" fill="var(--library-surface)" stroke="currentColor" stroke-width="1.5" />
+      <path d="M215 68v73M111 46c32 4 59 14 82 30m-82-15c32 4 59 14 82 30m-82-15c32 4 59 14 82 30m42-30c23-16 50-26 82-30m-82 45c23-16 50-26 82-30m-82 45c23-16 50-26 82-30" stroke="currentColor" stroke-opacity=".35" />
+      <path d="m290 32 11-3v51l-6-3-5 7z" fill="var(--library-rust)" />
+    </svg>
+  </div>
+  <p class="auth-intro-foot">{{ t "auth.intro_foot" }}</p>
+</section>
+{{ end }}

@@ -1,7 +1,8 @@
 {{ define "content" }}
-<div class="flex items-center justify-center min-h-[calc(100vh-12rem)] px-4 py-8">
-<div class="w-full max-w-md mx-auto border border-copper/45 bg-ink/70 p-6 md:p-7 shadow-[10px_10px_0_0_rgba(31,139,163,0.22)]">
-  <h2 class="font-serif text-2xl text-foam">{{ t "auth.signup_title" }}</h2>
+<div class="auth-layout">
+  {{ template "auth-intro" . }}
+<div class="auth-panel">
+  <h1 class="auth-title">{{ t "auth.signup_title" }}</h1>
   <.form action="/signup" method="post">
     <.input name="email" type="email" label="{{ t "auth.email_label" }}" value="{{ .Email }}" error="{{ fieldError .Errors "email" }}" />
     <.password name="password" label="{{ t "auth.password_label" }}" error="{{ fieldError .Errors "password" }}" autocomplete="new-password" required="required" />
