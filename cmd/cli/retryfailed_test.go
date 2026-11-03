@@ -30,7 +30,9 @@ func writePendingFile(t *testing.T, lines string) string {
 }
 
 func TestPendingFromFile_ParsesMD5AndFilename(t *testing.T) {
-	path := writePendingFile(t, "# comentário\n\n"+pendingMD5+"|mind-over-grind.epub\n"+strings.Repeat("b", 32)+"\n")
+	fakedata.Seed(42)
+	title := fakedata.Title()
+	path := writePendingFile(t, "# comentário\n\n"+pendingMD5+"|mind-over-grind.epub|"+title+"\n"+strings.Repeat("b", 32)+"\n")
 	books, err := pendingFromFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +43,10 @@ func TestPendingFromFile_ParsesMD5AndFilename(t *testing.T) {
 	if books[0].md5 != pendingMD5 || books[0].filename != "mind-over-grind.epub" || books[0].extension != "epub" {
 		t.Fatalf("books[0] = %+v", books[0])
 	}
-	if books[1].md5 != strings.Repeat("b", 32) || books[1].filename != strings.Repeat("b", 32) {
+	if books[0].title != title {
+		t.Fatalf("books[0].title = %q, want the optional third field", books[0].title)
+	}
+	if books[1].md5 != strings.Repeat("b", 32) || books[1].filename != strings.Repeat("b", 32) || books[1].title != "" {
 		t.Fatalf("books[1] = %+v, want the md5 as the fallback file name", books[1])
 	}
 }

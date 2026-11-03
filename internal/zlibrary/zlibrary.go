@@ -57,7 +57,19 @@ type Client struct {
 type session struct {
 	userID  int64
 	userKey string
+	quota   Quota
+	quotaAt time.Time
 }
+
+// Quota is the account's daily download allowance as the API reports it.
+type Quota struct {
+	Used  int `json:"used"`
+	Limit int `json:"limit"`
+}
+
+// quotaTTL bounds how long one quota reading is reused; a download marks it
+// stale right away, and the timer covers changes made elsewhere.
+const quotaTTL = 5 * time.Minute
 
 // errPleaseLogin marks an expired session, so the caller can log in again.
 var errPleaseLogin = errors.New("zlibrary: please login")
@@ -118,13 +130,32 @@ func (c *Client) DownloadLink(ctx context.Context, book Book) (string, error) {
 	}
 	link, err := c.fileLink(ctx, book)
 	if err == nil {
+		c.markQuotaStale()
 		return link, nil
 	}
 	if !errors.Is(err, errPleaseLogin) {
 		return "", err
 	}
 	c.forgetSession()
-	return c.fileLink(ctx, book)
+	link, err = c.fileLink(ctx, book)
+	if err == nil {
+		c.markQuotaStale()
+	}
+	return link, err
+}
+
+// Quota returns the account's daily download allowance, re-reading it when
+// the cached reading aged out or a download just consumed one.
+func (c *Client) Quota(ctx context.Context) (Quota, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.session != nil && time.Since(c.session.quotaAt) < quotaTTL {
+		return c.session.quota, nil
+	}
+	if err := c.loginLocked(ctx); err != nil {
+		return Quota{}, err
+	}
+	return c.session.quota, nil
 }
 
 func (c *Client) fileLink(ctx context.Context, book Book) (string, error) {
@@ -190,8 +221,10 @@ func (c *Client) loginLocked(ctx context.Context) error {
 		Success int    `json:"success"`
 		Error   string `json:"error"`
 		User    struct {
-			ID           int64  `json:"id"`
-			RemixUserKey string `json:"remix_userkey"`
+			ID             int64  `json:"id"`
+			RemixUserKey   string `json:"remix_userkey"`
+			DownloadsToday int    `json:"downloads_today"`
+			DownloadsLimit int    `json:"downloads_limit"`
 		} `json:"user"`
 	}
 	if err := json.Unmarshal(payload, &response); err != nil {
@@ -203,13 +236,28 @@ func (c *Client) loginLocked(ctx context.Context) error {
 	if response.User.ID <= 0 || strings.TrimSpace(response.User.RemixUserKey) == "" {
 		return fmt.Errorf("zlibrary: login response missing user id or remix_userkey")
 	}
-	c.session = &session{userID: response.User.ID, userKey: strings.TrimSpace(response.User.RemixUserKey)}
+	c.session = &session{
+		userID:  response.User.ID,
+		userKey: strings.TrimSpace(response.User.RemixUserKey),
+		quota:   Quota{Used: response.User.DownloadsToday, Limit: response.User.DownloadsLimit},
+		quotaAt: time.Now(),
+	}
 	return nil
 }
 
 func (c *Client) forgetSession() {
 	c.mu.Lock()
 	c.session = nil
+	c.mu.Unlock()
+}
+
+// markQuotaStale forces the next Quota call to re-read the account, since a
+// download just consumed one from the daily allowance.
+func (c *Client) markQuotaStale() {
+	c.mu.Lock()
+	if c.session != nil {
+		c.session.quotaAt = time.Time{}
+	}
 	c.mu.Unlock()
 }
 

@@ -88,10 +88,15 @@ func pickAlternates(entries []libgen.Entry, title, extension string, tried map[s
 	return alternates
 }
 
+// minZlibSharedWords keeps a one-word query from matching a one-word title:
+// searching "walk" must not accept "Walk-In", while a full title still needs
+// only two shared words to count.
+const minZlibSharedWords = 2
+
 // pickZlibBook ranks Z-Library search hits for a replacement copy of the
 // wanted title: a hit whose md5 is the exact file that was asked for wins
 // outright (Z-Library often carries the byte-identical libgen file), then
-// same-extension copies ranked by title overlap.
+// same-extension copies with enough shared title words, best overlap first.
 func pickZlibBook(books []zlibrary.Book, title, extension, wantedMD5 string) (zlibrary.Book, bool) {
 	wanted := strings.ToLower(strings.TrimSpace(wantedMD5))
 	if wanted != "" {
@@ -113,6 +118,9 @@ func pickZlibBook(books []zlibrary.Book, title, extension, wantedMD5 string) (zl
 		if extension != "" && !strings.EqualFold(strings.TrimSpace(book.Extension), extension) {
 			continue
 		}
+		if sharedWords(title, book.Title) < minZlibSharedWords {
+			continue
+		}
 		score := titleSimilarity(title, book.Title)
 		if score < alternateTitleThreshold || score <= bestScore {
 			continue
@@ -120,4 +128,17 @@ func pickZlibBook(books []zlibrary.Book, title, extension, wantedMD5 string) (zl
 		best, bestScore = book, score
 	}
 	return best, bestScore > 0
+}
+
+// sharedWords counts the significant words two titles have in common.
+func sharedWords(a, b string) int {
+	wordsA := titleWords(a)
+	wordsB := titleWords(b)
+	shared := 0
+	for word := range wordsA {
+		if wordsB[word] {
+			shared++
+		}
+	}
+	return shared
 }

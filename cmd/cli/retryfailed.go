@@ -126,9 +126,10 @@ func collectPending(store *catalog.Store, fromFile string, userID int64) ([]pend
 	return books, nil
 }
 
-// pendingFromFile reads one book per line: "md5|arquivo" for a catalog entry or
-// a full http(s) URL (optionally "|arquivo") for a copy fetched as-is — a
-// Z-Library CDN link, for instance. Blank and # lines are ignored.
+// pendingFromFile reads one book per line: "md5|arquivo[|título]" for a
+// catalog entry or a full http(s) URL (optionally "|arquivo") for a copy
+// fetched as-is — a Z-Library CDN link, for instance. The optional title
+// powers the same-title fallbacks; blank and # lines are ignored.
 func pendingFromFile(path string) ([]pendingBook, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -147,17 +148,25 @@ func pendingFromFile(path string) ([]pendingBook, error) {
 			books = append(books, pendingURL(line))
 			continue
 		}
-		md5, name, _ := strings.Cut(line, "|")
-		md5 = strings.ToLower(strings.TrimSpace(md5))
+		parts := strings.SplitN(line, "|", 3)
+		md5 := strings.ToLower(strings.TrimSpace(parts[0]))
 		if !catalog.IsMD5(md5) {
 			return nil, fmt.Errorf("retry-failed: linha inválida %q: md5 inválido", line)
 		}
-		name = strings.TrimSpace(name)
+		name := ""
+		if len(parts) > 1 {
+			name = strings.TrimSpace(parts[1])
+		}
 		if name == "" {
 			name = md5
 		}
+		title := ""
+		if len(parts) > 2 {
+			title = strings.TrimSpace(parts[2])
+		}
 		books = append(books, pendingBook{
 			md5:       md5,
+			title:     title,
 			filename:  name,
 			extension: strings.TrimPrefix(filepath.Ext(name), "."),
 		})

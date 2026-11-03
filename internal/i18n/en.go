@@ -64,6 +64,7 @@ var enMessages = map[string]string{
 	"home.minimal.hint":         "Use `amarra-cais g resource <name> --public` to get started.",
 	"layout.search_nav":         "Search",
 	"layout.downloads_nav":      "Downloads",
+	"layout.zlib_quota_label":   "Z-Library today",
 	"layout.config_nav":         "Settings",
 	"downloads.title":           "Downloads",
 	"downloads.heading":         "Downloads",

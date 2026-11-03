@@ -60,6 +60,7 @@
     <link rel="apple-touch-icon" href="/static/icons/icon.png?v=book-2" />
     <link rel="icon" href="/static/favicon.svg?v=book-2" type="image/svg+xml" />
     <script src="/static/js/amarra.js" defer></script>
+    <script src="/static/js/zlib-quota.js" defer></script>
   </head>
   <body class="min-h-screen bg-ink font-sans antialiased text-foam flex flex-col justify-between" data-amarra-shell="{{ if .Site.LoggedIn }}app{{ else }}auth{{ end }}">
     <a href="#amarra-main" class="skip-link" data-amarra-skip>{{ t "layout.skip" }}</a>
@@ -131,6 +132,7 @@
             <!-- cais:nav -->
           </div>
           <div class="mt-auto flex flex-col gap-3 border-t border-foam/10 pt-3">
+            <div id="zlib-quota" hidden data-endpoint="/zlib/quota" data-label="{{ t "layout.zlib_quota_label" }}" class="px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-foam/40"><span data-zlib-quota-fill></span></div>
             <div class="flex items-center justify-between gap-2">
               <.locale-toggle current="{{ .Locale }}" />
               <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">

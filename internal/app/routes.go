@@ -17,6 +17,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	cover := handlers.NewCoverHandler(deps.Libgen)
 	configuracoes := handlers.NewConfiguracoesHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)
 	auth := handlers.NewAuthHandler(deps.Views, deps.Store, deps.Site, deps.Store.Sessions(), cfg, deps.Catalog)
+	quota := handlers.NewQuotaHandler(deps.Zlib)
 
 	loginLimit := middleware.NewRateLimiter(10, cfg)
 	resetLimit := middleware.NewRateLimiter(10, cfg)
@@ -26,6 +27,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	r.Get("/downloads", middleware.RequireAuthFunc("/login", downloads.ServeHTTP))
 	r.Post("/downloads/delete", middleware.RequireAuthFunc("/login", downloads.Delete))
 	r.Get("/cover", middleware.RequireAuthFunc("/login", cover.ServeHTTP))
+	r.Get("/zlib/quota", middleware.RequireAuthFunc("/login", quota.ServeHTTP))
 	r.Get("/login", auth.Login)
 	r.Post("/login", loginLimit.Middleware(http.HandlerFunc(auth.LoginPost)).ServeHTTP)
 	r.Get("/signup", auth.SignUp)

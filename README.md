@@ -97,6 +97,8 @@ libgen-books zlib "beyond belief" --pick 4 --out ~/Downloads/beyond-belief.epub
 
 `retry-failed` uses the account too: when a libgen md5 never syncs and the mirror has no synced copy, it searches Z-Library for the same title, prefers a hit whose `md5` equals the requested one (Z-Library often carries the byte-identical file), and otherwise takes the closest same-format copy. Every download is verified against the `md5` Z-Library reports for that file.
 
+The web sidebar shows the account's daily quota (`Z-Library · used/limit`) when the credentials are set; the line hides itself when the feature is off or the API is unreachable.
+
 Without an account the older copy-paste flow still works: click Download on 1lib.sk, copy the **final CDN address** (`https://dln1.ncdn.ec/books-files/...`, valid ~5 minutes) and hand it to `download --url "<cdn-url>" --no-verify` or a `retry-failed --from` URL line.
 
 ## Download sources
