@@ -51,10 +51,14 @@ func (c *Chain) Download(ctx context.Context, request libgen.DownloadRequest) (l
 		return libgen.Result{}, fmt.Errorf("sources: download needs an md5, got none")
 	}
 	destination := c.fetcher.Destination(request)
+	wantMD5 := md5
+	if request.SkipVerify {
+		wantMD5 = ""
+	}
 
 	var failures []error
 	for _, provider := range c.providers {
-		result, err := c.fetchFromProvider(ctx, provider, md5, destination)
+		result, err := c.fetchFromProvider(ctx, provider, md5, wantMD5, destination)
 		if err == nil {
 			return result, nil
 		}
@@ -63,7 +67,7 @@ func (c *Chain) Download(ctx context.Context, request libgen.DownloadRequest) (l
 	return libgen.Result{}, fmt.Errorf("sources: every provider failed for md5 %s: %w", md5, errors.Join(failures...))
 }
 
-func (c *Chain) fetchFromProvider(ctx context.Context, provider Provider, md5, destPath string) (libgen.Result, error) {
+func (c *Chain) fetchFromProvider(ctx context.Context, provider Provider, md5, wantMD5, destPath string) (libgen.Result, error) {
 	urls, err := candidateURLs(ctx, provider, md5)
 	if err != nil {
 		return libgen.Result{}, err
@@ -71,7 +75,7 @@ func (c *Chain) fetchFromProvider(ctx context.Context, provider Provider, md5, d
 
 	var failures []error
 	for _, rawURL := range urls {
-		result, err := c.fetcher.FetchVerified(ctx, rawURL, destPath, md5)
+		result, err := c.fetcher.FetchVerified(ctx, rawURL, destPath, wantMD5)
 		if err == nil {
 			result.Source = provider.Name()
 			return result, nil

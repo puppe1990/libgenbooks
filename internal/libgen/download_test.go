@@ -222,6 +222,9 @@ func TestDownload_VerifiesMatchingMD5(t *testing.T) {
 	if result.Bytes != int64(len(payload)) {
 		t.Errorf("Bytes = %d, want %d", result.Bytes, len(payload))
 	}
+	if result.MD5 != sum {
+		t.Errorf("result.MD5 = %q, want %q", result.MD5, sum)
+	}
 	got, err := os.ReadFile(dest)
 	if err != nil {
 		t.Fatal(err)
@@ -318,6 +321,37 @@ func TestFetch_Plain500IsNotUnsynced(t *testing.T) {
 	}
 	if err == nil || !strings.Contains(err.Error(), "status 500") {
 		t.Fatalf("err = %v, want the plain status error", err)
+	}
+}
+
+func TestDownload_SkipVerifyKeepsDifferentCopy(t *testing.T) {
+	payload := []byte("ZLIBCOPY")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	dest := filepath.Join(t.TempDir(), "book.epub")
+	result, err := client.Download(context.Background(), DownloadRequest{
+		MD5:        harryMD5, // the libgen hash; this copy has another one
+		DirectURL:  srv.URL + "/book.epub",
+		DestPath:   dest,
+		SkipVerify: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.MD5 != sum {
+		t.Errorf("result.MD5 = %q, want the computed %q", result.MD5, sum)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("skip-verify kept no file: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Errorf("file body = %q", got)
 	}
 }
 

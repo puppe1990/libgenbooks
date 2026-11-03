@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,10 @@ const alternateTries = 3
 
 // pendingBook is one failed download the retry command has to fix.
 type pendingBook struct {
-	md5       string
+	md5 string
+	// url is a pasted file URL (a Z-Library CDN link, say) — fetched as-is,
+	// without an expected hash to check.
+	url       string
 	title     string
 	author    string
 	year      int
@@ -46,7 +50,7 @@ type retryFailedOptions struct {
 func runRetryFailed(ctx context.Context, cfg config.Config, args []string) error {
 	flags := newFlagSet("retry-failed", "retry-failed [--user N] [--from lista.txt] [--out pasta] [--retry N] [--retry-interval 1m] [--no-alt] [--loop] [--pause 15m]")
 	userID := flags.Int64("user", 0, "id do usuário no histórico (0 = todos)")
-	fromFile := flags.String("from", "", "lista md5|arquivo por linha, em vez do histórico")
+	fromFile := flags.String("from", "", "lista com md5|arquivo ou URL por linha, em vez do histórico")
 	out := flags.String("out", "", "pasta de destino (padrão LIBGEN_DOWNLOAD_DIR)")
 	retries := flags.Int("retry", 1, "tentativas por livro quando o CDN ainda não sincronizou")
 	retryInterval := flags.Duration("retry-interval", time.Minute, "pausa base entre tentativas (cresce a cada uma)")
@@ -122,8 +126,9 @@ func collectPending(store *catalog.Store, fromFile string, userID int64) ([]pend
 	return books, nil
 }
 
-// pendingFromFile reads "md5|arquivo" lines (plain md5 also accepted; blank
-// and # lines ignored). Without a file name the md5 becomes the stem.
+// pendingFromFile reads one book per line: "md5|arquivo" for a catalog entry or
+// a full http(s) URL (optionally "|arquivo") for a copy fetched as-is — a
+// Z-Library CDN link, for instance. Blank and # lines are ignored.
 func pendingFromFile(path string) ([]pendingBook, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -136,6 +141,10 @@ func pendingFromFile(path string) ([]pendingBook, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if isURL(line) {
+			books = append(books, pendingURL(line))
 			continue
 		}
 		md5, name, _ := strings.Cut(line, "|")
@@ -157,6 +166,42 @@ func pendingFromFile(path string) ([]pendingBook, error) {
 		return nil, fmt.Errorf("retry-failed: %w", err)
 	}
 	return books, nil
+}
+
+func isURL(line string) bool {
+	return strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://")
+}
+
+// pendingURL builds the entry for a pasted URL; "url|name" overrides the file
+// name, otherwise the signed link's filename= query wins over the path base.
+func pendingURL(line string) pendingBook {
+	rawURL, name, _ := strings.Cut(line, "|")
+	rawURL = strings.TrimSpace(rawURL)
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = filenameFromURL(rawURL)
+	}
+	if name == "" {
+		name = "download"
+	}
+	return pendingBook{
+		url:       rawURL,
+		filename:  name,
+		extension: strings.TrimPrefix(strings.ToLower(filepath.Ext(name)), "."),
+	}
+}
+
+// filenameFromURL prefers the signed CDN's filename= query (Z-Library encodes
+// the original file name there) and falls back to the path base.
+func filenameFromURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	if name := strings.TrimSpace(parsed.Query().Get("filename")); name != "" {
+		return filepath.Base(name)
+	}
+	return filepath.Base(parsed.Path)
 }
 
 // runRetryPasses walks the pending list once, then — under --loop — keeps
@@ -199,12 +244,15 @@ func retryPass(ctx context.Context, cfg config.Config, store *catalog.Store, cha
 		usedAlt, result, err := retryOne(ctx, cfg, chain, book, dest, opts)
 		if err != nil {
 			remaining++
-			fmt.Printf("pend %s: %s\n", book.md5, firstLine(err.Error()))
+			fmt.Printf("pend %s: %s\n", pendingRef(book), firstLine(err.Error()))
 			continue
 		}
-		if usedAlt != "" {
+		switch {
+		case usedAlt != "":
 			fmt.Printf("ok   %s (%s) via cópia alternativa %s\n", book.filename, humanBytes(result.Bytes), usedAlt[:8])
-		} else {
+		case book.url != "":
+			fmt.Printf("ok   %s (%s) md5=%s (url colada)\n", book.filename, humanBytes(result.Bytes), result.MD5)
+		default:
 			fmt.Printf("ok   %s (%s)\n", book.filename, humanBytes(result.Bytes))
 		}
 		markRetrySuccess(store, book)
@@ -212,10 +260,25 @@ func retryPass(ctx context.Context, cfg config.Config, store *catalog.Store, cha
 	return remaining
 }
 
+// pendingRef names one entry in the pass output: the md5, or "url" for a
+// pasted link that has no catalog hash.
+func pendingRef(book pendingBook) string {
+	if book.md5 != "" {
+		return book.md5
+	}
+	if book.url != "" {
+		return "url " + book.filename
+	}
+	return book.filename
+}
+
 // retryOne downloads one book, pausing and retrying while the CDN reports the
 // file as unsynced, then falling back to a synced copy of the same title when
-// the exact md5 stays missing.
+// the exact md5 stays missing. A pasted URL is fetched as-is.
 func retryOne(ctx context.Context, cfg config.Config, chain *sources.Chain, book pendingBook, dest string, opts retryFailedOptions) (string, libgen.Result, error) {
+	if strings.TrimSpace(book.url) != "" {
+		return fetchPastedURL(ctx, cfg, book, dest)
+	}
 	attempt := func(ctx context.Context) (libgen.Result, error) {
 		return chain.Download(ctx, libgen.DownloadRequest{
 			MD5:       book.md5,
@@ -274,6 +337,17 @@ func tryAlternate(ctx context.Context, cfg config.Config, chain *sources.Chain, 
 		}
 	}
 	return "", libgen.Result{}, libgen.ErrNotSynced
+}
+
+// fetchPastedURL fetches a URL the reader pasted (a Z-Library CDN link that
+// expires in minutes, say). There is no expected md5 to check, so the file is
+// kept and its real hash comes back in the result.
+func fetchPastedURL(ctx context.Context, cfg config.Config, book pendingBook, dest string) (string, libgen.Result, error) {
+	result, err := cfg.Client().FetchVerified(ctx, book.url, dest, "")
+	if err != nil {
+		return "", libgen.Result{}, err
+	}
+	return "", result, nil
 }
 
 // markRetrySuccess flips the history row, so the page stops showing a book

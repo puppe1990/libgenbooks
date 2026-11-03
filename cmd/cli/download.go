@@ -20,6 +20,7 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 	directURL := flags.String("url", "", "URL direta do arquivo (pula o handshake do espelho)")
 	retries := flags.Int("retry", 1, "tentativas quando o CDN ainda não sincronizou o arquivo")
 	retryInterval := flags.Duration("retry-interval", time.Minute, "pausa base entre tentativas (cresce a cada uma)")
+	noVerify := flags.Bool("no-verify", false, "aceita um arquivo com md5 diferente do pedido (ex.: cópia do z-lib via --url); o md5 real é mostrado")
 	positional, err := parseFlags(flags, args)
 	if err != nil {
 		return err
@@ -41,12 +42,13 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 		return err
 	}
 	request := libgen.DownloadRequest{
-		BookID:    book.ID,
-		MD5:       md5,
-		Title:     book.Title,
-		Extension: book.Extension,
-		DirectURL: *directURL,
-		DestPath:  *out,
+		BookID:     book.ID,
+		MD5:        md5,
+		Title:      book.Title,
+		Extension:  book.Extension,
+		DirectURL:  *directURL,
+		DestPath:   *out,
+		SkipVerify: *noVerify,
 	}
 	result, err := retryUnsynced(ctx, retryOptions{
 		attempts: *retries,
@@ -60,8 +62,21 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
+	if *noVerify {
+		fmt.Printf("baixado: %s (%s) md5=%s%s\n", result.Path, humanBytes(result.Bytes), result.MD5, otherCopyNote(request.MD5, result.MD5))
+		return nil
+	}
 	fmt.Printf("baixado: %s (%s)%s\n", result.Path, humanBytes(result.Bytes), sourceNote(result))
 	return nil
+}
+
+// otherCopyNote flags a file whose hash differs from the one that was asked
+// for — expected with --no-verify and a copy from another source.
+func otherCopyNote(wanted, actual string) string {
+	if wanted == "" || actual == "" || strings.EqualFold(wanted, actual) {
+		return ""
+	}
+	return " (cópia diferente de " + strings.ToLower(wanted) + ")"
 }
 
 // shortRef names the book in progress lines: the first md5 characters, or
