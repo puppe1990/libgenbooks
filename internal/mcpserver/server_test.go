@@ -2,6 +2,8 @@ package mcpserver
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -171,12 +173,13 @@ func TestServer_LiveSearchThenDownloadByMD5(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload := []byte("EPUB-FROM-MIRROR")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/index.php":
 			_, _ = w.Write(fixture)
 		case "/ads.php":
-			_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY1">GET</a>`))
+			_, _ = w.Write([]byte(`<a href="get.php?md5=` + sum + `&key=KEY1">GET</a>`))
 		case "/get.php":
 			_, _ = w.Write(payload)
 		default:
@@ -209,7 +212,9 @@ func TestServer_LiveSearchThenDownloadByMD5(t *testing.T) {
 	downloadResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "libgen_download_book",
 		Arguments: map[string]any{
-			"ref": "184c16eae281bf2ebea72eb6d7aa6f6d",
+			// The served payload is synthetic, so the ref has to be its real
+			// hash for the md5 gate to pass.
+			"ref": sum,
 			"out": destination,
 		},
 	})
@@ -241,6 +246,7 @@ func TestServer_DownloadUsesResolverChain(t *testing.T) {
 	t.Cleanup(annasSrv.Close)
 
 	payload := []byte("EPUB-FROM-IPFS")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
 	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/epub+zip")
 		_, _ = w.Write(payload)
@@ -264,7 +270,7 @@ func TestServer_DownloadUsesResolverChain(t *testing.T) {
 	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "libgen_download_book",
 		Arguments: map[string]any{
-			"ref": "184c16eae281bf2ebea72eb6d7aa6f6d",
+			"ref": sum,
 			"out": destination,
 		},
 	})

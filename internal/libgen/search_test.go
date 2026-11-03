@@ -115,3 +115,59 @@ func TestSearch_OrdersByNewestYear(t *testing.T) {
 		}
 	}
 }
+
+func TestSearch_FallsBackToNextMirror(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/search.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var primaryHits, mirrorHits int
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		primaryHits++
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(primary.Close)
+
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mirrorHits++
+		_, _ = w.Write(fixture)
+	}))
+	t.Cleanup(mirror.Close)
+
+	client := New(primary.URL)
+	client.DownloadMirrors = []string{mirror.URL}
+	entries, err := client.Search(context.Background(), "harry potter", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d, want 2 from the fallback mirror", len(entries))
+	}
+	if primaryHits == 0 || mirrorHits == 0 {
+		t.Fatalf("hits = %d/%d, want the primary tried before the fallback", primaryHits, mirrorHits)
+	}
+}
+
+func TestSearch_AllMirrorsDownNamesEveryHost(t *testing.T) {
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(primary.Close)
+
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(mirror.Close)
+
+	client := New(primary.URL)
+	client.DownloadMirrors = []string{mirror.URL}
+	_, err := client.Search(context.Background(), "harry potter", 2)
+	if err == nil {
+		t.Fatal("Search() = nil error, want the joined mirror failures")
+	}
+	for _, host := range []string{primary.URL, mirror.URL} {
+		if !strings.Contains(err.Error(), host) {
+			t.Errorf("error %q missing host %s", err, host)
+		}
+	}
+}

@@ -2,6 +2,8 @@ package libgen
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,19 +39,14 @@ var unsafeFilenameRE = regexp.MustCompile(`[^a-z0-9._-]+`)
 
 // Download streams the book file to DestPath. Without a DirectURL it reads the
 // record page and uses the first link the page exposes, which requires the
-// logged-in cookie the mirror gates downloads behind.
+// logged-in cookie the mirror gates downloads behind. When the request names
+// an md5, the finished file must hash to it.
 func (c *Client) Download(ctx context.Context, request DownloadRequest) (Result, error) {
 	sourceURL, err := c.downloadSourceURL(ctx, request)
 	if err != nil {
 		return Result{}, err
 	}
-
-	destPath := c.Destination(request)
-	written, err := c.fetchFile(ctx, sourceURL, destPath)
-	if err != nil {
-		return Result{}, err
-	}
-	return Result{URL: sourceURL, Path: destPath, Bytes: written}, nil
+	return c.FetchVerified(ctx, sourceURL, c.Destination(request), request.MD5)
 }
 
 // Destination is where Download writes: request.DestPath when set, otherwise
@@ -77,14 +74,33 @@ func (c *Client) downloadSourceURL(ctx context.Context, request DownloadRequest)
 }
 
 // FetchFile streams an arbitrary URL to disk; the dump command uses it for the
-// catalog snapshot, which has no record page.
+// catalog snapshot, which has no record page. The body is not verified — there
+// is no expected hash for a dump part.
 func (c *Client) FetchFile(ctx context.Context, rawURL, destPath string) (Result, error) {
 	if strings.TrimSpace(rawURL) == "" {
 		return Result{}, fmt.Errorf("fetch file: empty URL")
 	}
-	written, err := c.fetchFile(ctx, rawURL, destPath)
+	written, _, err := c.fetchFile(ctx, rawURL, destPath)
 	if err != nil {
 		return Result{}, err
+	}
+	return Result{URL: rawURL, Path: destPath, Bytes: written}, nil
+}
+
+// FetchVerified is FetchFile plus the md5 gate: when wantMD5 is a 32-hex hash
+// and the body does not hash to it, the file is removed and the fetch fails —
+// a truncated or swapped file must not pass as a successful download.
+func (c *Client) FetchVerified(ctx context.Context, rawURL, destPath, wantMD5 string) (Result, error) {
+	if strings.TrimSpace(rawURL) == "" {
+		return Result{}, fmt.Errorf("fetch file: empty URL")
+	}
+	written, sum, err := c.fetchFile(ctx, rawURL, destPath)
+	if err != nil {
+		return Result{}, err
+	}
+	if want := expectedMD5(wantMD5); want != "" && want != sum {
+		_ = os.Remove(destPath)
+		return Result{}, fmt.Errorf("download %s: md5 mismatch: computed %s, want %s", rawURL, sum, want)
 	}
 	return Result{URL: rawURL, Path: destPath, Bytes: written}, nil
 }
@@ -104,10 +120,13 @@ func (c *Client) pickDownloadURL(ctx context.Context, id int64) (string, error) 
 	return "", fmt.Errorf("libgen: no download link for book %d (%s): %s, or pass a direct file URL", id, record.URL, hint)
 }
 
-func (c *Client) fetchFile(ctx context.Context, rawURL, destPath string) (int64, error) {
+// fetchFile streams rawURL to destPath and returns the bytes written plus the
+// md5 of the body, hashed on the fly so callers can gate the result on the
+// expected hash without a second read.
+func (c *Client) fetchFile(ctx context.Context, rawURL, destPath string) (int64, string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return 0, fmt.Errorf("build download request for %s: %w", rawURL, err)
+		return 0, "", fmt.Errorf("build download request for %s: %w", rawURL, err)
 	}
 	request.Header.Set("User-Agent", c.UserAgent)
 	request.Header.Set("Referer", c.BaseURL+"/")
@@ -117,20 +136,25 @@ func (c *Client) fetchFile(ctx context.Context, rawURL, destPath string) (int64,
 
 	response, err := c.HTTP.Do(request)
 	if err != nil {
-		return 0, fmt.Errorf("download %s: %w", rawURL, err)
+		return 0, "", fmt.Errorf("download %s: %w", rawURL, err)
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return 0, fmt.Errorf("download %s: status %d", rawURL, response.StatusCode)
+		return 0, "", fmt.Errorf("download %s: status %d", rawURL, response.StatusCode)
 	}
 	if htmlPayload(response.Header.Get("Content-Type")) {
-		return 0, fmt.Errorf("download %s: server answered with an HTML page instead of a file (content-type %q)", rawURL, response.Header.Get("Content-Type"))
+		return 0, "", fmt.Errorf("download %s: server answered with an HTML page instead of a file (content-type %q)", rawURL, response.Header.Get("Content-Type"))
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return 0, fmt.Errorf("create download directory for %s: %w", destPath, err)
+		return 0, "", fmt.Errorf("create download directory for %s: %w", destPath, err)
 	}
-	return writeAtomic(destPath, response.Body)
+	hash := md5.New()
+	written, err := writeAtomic(destPath, io.TeeReader(response.Body, hash))
+	if err != nil {
+		return 0, "", err
+	}
+	return written, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // writeAtomic writes to <dest>.part and renames, so an interrupted transfer
@@ -194,6 +218,17 @@ func filenameStem(request DownloadRequest) string {
 func htmlPayload(contentType string) bool {
 	lower := strings.ToLower(contentType)
 	return strings.Contains(lower, "text/html") || strings.Contains(lower, "application/xhtml")
+}
+
+// expectedMD5 returns the lowercase hash to verify against, or "" when the
+// reference is not an md5 — callers skip verification in that case (dumps and
+// covers have no expected hash).
+func expectedMD5(text string) string {
+	normalized := strings.ToLower(strings.TrimSpace(text))
+	if len(normalized) != 32 || !allHex(normalized) {
+		return ""
+	}
+	return normalized
 }
 
 func slugify(title string) string {

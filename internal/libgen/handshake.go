@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,11 @@ import (
 // adsAttempts is how many times one mirror's ads.php page is retried before
 // that mirror counts as down for this handshake.
 const adsAttempts = 3
+
+// adsRetryDelay is the base pause between ads.php attempts; each attempt waits
+// one more multiple of it so a rate-limited mirror gets breathing room. A
+// variable so tests can drop the wait.
+var adsRetryDelay = 200 * time.Millisecond
 
 // adsMirrorTimeout bounds one mirror inside the race: a stalled host must lose
 // to its siblings instead of holding the whole download.
@@ -27,7 +33,7 @@ func (c *Client) ResolveDownload(ctx context.Context, md5 string) (string, error
 	if len(md5) != 32 || !allHex(md5) {
 		return "", fmt.Errorf("invalid md5 %q: want 32 hex characters", md5)
 	}
-	bases := c.downloadBases()
+	bases := c.mirrorBases()
 	if len(bases) == 1 {
 		return c.resolveAds(ctx, bases[0], md5)
 	}
@@ -86,7 +92,7 @@ func (c *Client) AdsPageURL(md5 string) string {
 	if len(md5) != 32 || !allHex(md5) {
 		return ""
 	}
-	bases := c.downloadBases()
+	bases := c.mirrorBases()
 	if len(bases) == 0 {
 		return ""
 	}
@@ -97,7 +103,9 @@ func (c *Client) AdsPageURL(md5 string) string {
 	return base + "/ads.php?md5=" + md5
 }
 
-func (c *Client) downloadBases() []string {
+// mirrorBases is the ordered, deduped host list every mirror-facing operation
+// walks: search and the download handshake share the same rotation.
+func (c *Client) mirrorBases() []string {
 	seen := make(map[string]bool)
 	var bases []string
 	add := func(raw string) {
@@ -142,21 +150,42 @@ func (c *Client) getAds(ctx context.Context, adsURL string) ([]byte, error) {
 		if !retryableFetch(err) {
 			return nil, err
 		}
+		if err := sleepBeforeRetry(ctx, attempt); err != nil {
+			return nil, err
+		}
 	}
 	return nil, last
 }
 
+// retryableFetch reports whether the mirror's answer is a transient one worth
+// another attempt: 5xx and 429. The check is typed, not matched on the message.
 func retryableFetch(err error) bool {
-	if err == nil {
+	var statusErr statusError
+	if !errors.As(err, &statusErr) {
 		return false
 	}
-	msg := err.Error()
-	for _, code := range []string{"status 500", "status 502", "status 503", "status 429"} {
-		if strings.Contains(msg, code) {
-			return true
-		}
+	switch statusErr.status {
+	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusTooManyRequests:
+		return true
+	default:
+		return false
 	}
-	return false
+}
+
+// sleepBeforeRetry pauses between attempts, scaled by the attempt number, and
+// gives up as soon as the context is done.
+func sleepBeforeRetry(ctx context.Context, attempt int) error {
+	if adsRetryDelay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(adsRetryDelay * time.Duration(attempt))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func findGetLink(body []byte, pageURL string) string {

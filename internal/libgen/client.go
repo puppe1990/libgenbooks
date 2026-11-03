@@ -71,6 +71,17 @@ func (c *Client) Record(ctx context.Context, id int64) (Record, error) {
 	return ParseRecord(body, recordURL)
 }
 
+// statusError is an HTTP response the mirror refused with. Typed so the
+// handshake can decide about retrying without parsing its own message.
+type statusError struct {
+	rawURL string
+	status int
+}
+
+func (e statusError) Error() string {
+	return fmt.Sprintf("fetch %s: status %d", e.rawURL, e.status)
+}
+
 func (c *Client) get(ctx context.Context, rawURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -87,7 +98,7 @@ func (c *Client) get(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: status %d", rawURL, resp.StatusCode)
+		return nil, statusError{rawURL: rawURL, status: resp.StatusCode}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {

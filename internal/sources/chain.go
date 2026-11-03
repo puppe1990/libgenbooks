@@ -18,9 +18,10 @@ type Provider interface {
 	URLs(ctx context.Context, md5 string) ([]string, error)
 }
 
-// Fetcher persists one file URL; *libgen.Client implements it.
+// Fetcher persists one file URL and verifies it against the expected md5;
+// *libgen.Client implements it.
 type Fetcher interface {
-	FetchFile(ctx context.Context, rawURL, destPath string) (libgen.Result, error)
+	FetchVerified(ctx context.Context, rawURL, destPath, wantMD5 string) (libgen.Result, error)
 	Destination(request libgen.DownloadRequest) string
 }
 
@@ -70,7 +71,7 @@ func (c *Chain) fetchFromProvider(ctx context.Context, provider Provider, md5, d
 
 	var failures []error
 	for _, rawURL := range urls {
-		result, err := c.fetcher.FetchFile(ctx, rawURL, destPath)
+		result, err := c.fetcher.FetchVerified(ctx, rawURL, destPath, md5)
 		if err == nil {
 			result.Source = provider.Name()
 			return result, nil
@@ -80,9 +81,11 @@ func (c *Chain) fetchFromProvider(ctx context.Context, provider Provider, md5, d
 	return libgen.Result{}, fmt.Errorf("%s: %w", provider.Name(), errors.Join(failures...))
 }
 
-// Resolve returns the first provider's preferred file URL without fetching
-// the file, for callers that hand the URL to someone else (the web 302).
-func (c *Chain) Resolve(ctx context.Context, md5 string) (Link, error) {
+// Resolve returns the first candidate file URL the accept callback approves,
+// walking every candidate of every provider. Callers use accept to reject a
+// link the browser cannot use (an unsynced file CDN, for instance) so the
+// chain keeps walking; nil accepts every candidate.
+func (c *Chain) Resolve(ctx context.Context, md5 string, accept func(context.Context, Link) bool) (Link, error) {
 	md5 = strings.ToLower(strings.TrimSpace(md5))
 	if md5 == "" {
 		return Link{}, fmt.Errorf("sources: resolve needs an md5, got none")
@@ -95,7 +98,13 @@ func (c *Chain) Resolve(ctx context.Context, md5 string) (Link, error) {
 			failures = append(failures, err)
 			continue
 		}
-		return Link{Provider: provider.Name(), URL: urls[0]}, nil
+		for _, rawURL := range urls {
+			link := Link{Provider: provider.Name(), URL: rawURL}
+			if accept == nil || accept(ctx, link) {
+				return link, nil
+			}
+			failures = append(failures, fmt.Errorf("%s: rejected %s", provider.Name(), rawURL))
+		}
 	}
 	return Link{}, fmt.Errorf("sources: every provider failed for md5 %s: %w", md5, errors.Join(failures...))
 }
