@@ -12,6 +12,7 @@ import (
 	"github.com/puppe1990/libgenbooks/internal/ipfs"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
 	"github.com/puppe1990/libgenbooks/internal/sources"
+	"github.com/puppe1990/libgenbooks/internal/zlibrary"
 )
 
 // Config is the app-owned configuration (not the amarra-cais HTTP config).
@@ -26,6 +27,13 @@ type Config struct {
 	// AnnasURL overrides Anna's Archive's primary domain (LIBGEN_ANNAS_URL);
 	// empty keeps the built-in .gl/.pk/.gd rotation.
 	AnnasURL string
+	// ZlibEmail/ZlibPassword are the Z-Library account the API login uses;
+	// empty disables the zlib fallbacks (LIBGEN_ZLIB_EMAIL/PASSWORD).
+	ZlibEmail    string
+	ZlibPassword string
+	// ZlibURL overrides the API host (LIBGEN_ZLIB_URL); empty keeps the
+	// library-redirect.sk default.
+	ZlibURL string
 }
 
 // Load reads LIBGEN_* variables, falling back to local defaults. A ./.env file
@@ -41,6 +49,9 @@ func Load() Config {
 		HistoryOwnerEmail: envOr("LIBGEN_HISTORY_OWNER_EMAIL", ""),
 		Sources:           envList("LIBGEN_SOURCES", strings.Join(sources.DefaultNames, ",")),
 		AnnasURL:          envOr("LIBGEN_ANNAS_URL", ""),
+		ZlibEmail:         envOr("LIBGEN_ZLIB_EMAIL", ""),
+		ZlibPassword:      envOr("LIBGEN_ZLIB_PASSWORD", ""),
+		ZlibURL:           envOr("LIBGEN_ZLIB_URL", ""),
 	}
 }
 
@@ -69,6 +80,19 @@ func (c Config) Resolver() (*sources.Chain, error) {
 		return nil, err
 	}
 	return sources.New(client, providers), nil
+}
+
+// Zlibrary builds the Z-Library API client with the configured account.
+func (c Config) Zlibrary() *zlibrary.Client {
+	client := zlibrary.New(c.ZlibURL)
+	client.Email = c.ZlibEmail
+	client.Password = c.ZlibPassword
+	return client
+}
+
+// ZlibraryEnabled reports whether the Z-Library fallback can log in.
+func (c Config) ZlibraryEnabled() bool {
+	return strings.TrimSpace(c.ZlibEmail) != "" && strings.TrimSpace(c.ZlibPassword) != ""
 }
 
 func envOr(key, fallback string) string {

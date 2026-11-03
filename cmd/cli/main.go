@@ -17,6 +17,7 @@ uso:
   libgen-books search <título|autor|isbn> [--limit N] [--local]
   libgen-books download <id|md5|título> [--out caminho] [--url URL] [--no-verify] [--retry N] [--retry-interval 1m]
   libgen-books retry-failed [--user N] [--from lista.txt] [--out pasta] [--retry N] [--no-alt] [--loop] [--pause 15m]
+  libgen-books zlib <título|autor> [--pick N] [--out caminho] [--list]
   libgen-books import [snapshot.sqlite3] [--from caminho]
   libgen-books dump [--list] [--part N] [--out caminho] [--url URL]
   libgen-books help
@@ -28,6 +29,9 @@ variáveis:
   LIBGEN_DOWNLOAD_DIR  pasta dos downloads (padrão downloads)
   LIBGEN_SOURCES       provedores em ordem de preferência (padrão libgen,annas)
   LIBGEN_ANNAS_URL     domínio primário do Anna's Archive (padrão embutido)
+  LIBGEN_ZLIB_EMAIL    conta da Z-Library para o comando zlib e o fallback
+  LIBGEN_ZLIB_PASSWORD senha da conta da Z-Library
+  LIBGEN_ZLIB_URL      host da API da Z-Library (padrão library-redirect.sk)
 `
 
 func main() {
@@ -54,6 +58,8 @@ func run(args []string) error {
 		return runDownload(ctx, cfg, args[1:])
 	case "retry-failed":
 		return runRetryFailed(ctx, cfg, args[1:])
+	case "zlib":
+		return runZlib(ctx, cfg, args[1:])
 	case "import", "i":
 		return runImport(ctx, cfg, args[1:])
 	case "dump":

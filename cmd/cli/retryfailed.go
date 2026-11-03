@@ -249,7 +249,7 @@ func retryPass(ctx context.Context, cfg config.Config, store *catalog.Store, cha
 		}
 		switch {
 		case usedAlt != "":
-			fmt.Printf("ok   %s (%s) via cópia alternativa %s\n", book.filename, humanBytes(result.Bytes), usedAlt[:8])
+			fmt.Printf("ok   %s (%s) via cópia alternativa %s\n", book.filename, humanBytes(result.Bytes), usedAlt)
 		case book.url != "":
 			fmt.Printf("ok   %s (%s) md5=%s (url colada)\n", book.filename, humanBytes(result.Bytes), result.MD5)
 		default:
@@ -300,7 +300,47 @@ func retryOne(ctx context.Context, cfg config.Config, chain *sources.Chain, book
 	if !opts.allowAlt || !errors.Is(err, libgen.ErrNotSynced) {
 		return "", libgen.Result{}, err
 	}
-	return tryAlternate(ctx, cfg, chain, book, dest)
+	alt, result, altErr := tryAlternate(ctx, cfg, chain, book, dest)
+	if altErr == nil {
+		return alt, result, nil
+	}
+	if !cfg.ZlibraryEnabled() {
+		return "", libgen.Result{}, altErr
+	}
+	return tryZlibAlternate(ctx, cfg, book, dest)
+}
+
+// tryZlibAlternate asks Z-Library for a copy of the same title. Search is
+// public; the signed file link uses the account from LIBGEN_ZLIB_*. The
+// download is verified against the md5 Z-Library reports for the file.
+func tryZlibAlternate(ctx context.Context, cfg config.Config, book pendingBook, dest string) (string, libgen.Result, error) {
+	query := strings.TrimSpace(book.title)
+	if query == "" {
+		stem := strings.TrimSuffix(book.filename, filepath.Ext(book.filename))
+		query = strings.ReplaceAll(stem, "-", " ")
+	}
+	if query == "" {
+		return "", libgen.Result{}, libgen.ErrNotSynced
+	}
+	client := cfg.Zlibrary()
+	books, err := client.Search(ctx, query, 1)
+	if err != nil {
+		return "", libgen.Result{}, err
+	}
+	match, ok := pickZlibBook(books, query, book.extension, book.md5)
+	if !ok {
+		return "", libgen.Result{}, fmt.Errorf("zlibrary: no matching copy for %q", query)
+	}
+	fmt.Printf("     tentando z-library %d (%.60s)\n", match.ID, match.Title)
+	link, err := client.DownloadLink(ctx, match)
+	if err != nil {
+		return "", libgen.Result{}, err
+	}
+	result, err := cfg.Client().FetchVerified(ctx, link, dest, match.MD5)
+	if err != nil {
+		return "", libgen.Result{}, err
+	}
+	return "zlibrary:" + strings.ToLower(match.MD5)[:8], result, nil
 }
 
 // tryAlternate searches the mirror by title and downloads the best-matching
@@ -333,7 +373,7 @@ func tryAlternate(ctx context.Context, cfg config.Config, chain *sources.Chain, 
 			DestPath:  dest,
 		})
 		if err == nil {
-			return md5, result, nil
+			return md5[:8], result, nil
 		}
 	}
 	return "", libgen.Result{}, libgen.ErrNotSynced
