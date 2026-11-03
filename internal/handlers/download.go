@@ -104,7 +104,13 @@ func (h *DownloadHandler) writeUnsynced(w http.ResponseWriter, r *http.Request, 
 }
 
 func (h *DownloadHandler) rememberClick(r *http.Request, md5 string, failed bool) {
-	if h.books == nil {
+	rememberDownloadClick(h.books, r, md5, failed)
+}
+
+// rememberDownloadClick records a Baixar click in the reader's history; a
+// no-op for anonymous requests or a nil catalog.
+func rememberDownloadClick(books *catalog.Store, r *http.Request, md5 string, failed bool) {
+	if books == nil {
 		return
 	}
 	userID, ok := session.UserID(r)
@@ -122,8 +128,8 @@ func (h *DownloadHandler) rememberClick(r *http.Request, md5 string, failed bool
 	if year, err := strconv.Atoi(r.URL.Query().Get("year")); err == nil {
 		rec.Year = year
 	}
-	fillDownloadFromCatalog(h.books, &rec)
-	_ = h.books.RecordDownload(rec)
+	fillDownloadFromCatalog(books, &rec)
+	_ = books.RecordDownload(rec)
 }
 
 func fillDownloadFromCatalog(books *catalog.Store, rec *catalog.DownloadRecord) {

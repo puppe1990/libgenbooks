@@ -16,7 +16,7 @@
           box.hidden = true;
           return;
         }
-        if (slot) slot.textContent = box.dataset.label + " · " + data.used + "/" + data.limit;
+        if (slot) slot.textContent = data.used + "/" + data.limit;
         box.hidden = false;
       })
       .catch(function () {

@@ -114,6 +114,14 @@ html.light .search-submit { color: rgb(var(--amarra-ink)); }
   font-weight: 600; color: var(--library-accent); transition: background 180ms ease-out;
 }
 .download-link:hover { background: rgb(var(--amarra-copper) / 0.12); }
+.zlib-link {
+  display: inline-flex; justify-content: center; align-items: center;
+  border: 1px solid rgb(var(--amarra-copper) / 0.55); border-radius: 5px;
+  padding: 8px 14px; min-height: 44px; font-size: 12px;
+  font-weight: 600; color: rgb(var(--amarra-copper)); transition: background 180ms ease-out;
+}
+.zlib-link:hover { background: rgb(var(--amarra-copper) / 0.14); }
+.book-actions > .zlib-link { margin-left: 8px; }
 .remove-link {
   display: inline-flex; justify-content: center; align-items: center;
   border: 1px solid rgb(var(--library-rust) / 0.45); border-radius: 5px;

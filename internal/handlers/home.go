@@ -24,16 +24,19 @@ type HomeHandler struct {
 	cfg     cais.Config
 	books   *catalog.Store
 	client  *libgen.Client
+	// zlibEnabled shows the separate Z-Library download button on each row.
+	zlibEnabled bool
 }
 
-func NewHomeHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store, client *libgen.Client) *HomeHandler {
+func NewHomeHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store, client *libgen.Client, zlibEnabled bool) *HomeHandler {
 	return &HomeHandler{
-		views:   views,
-		site:    site,
-		catalog: messages,
-		cfg:     cfg,
-		books:   books,
-		client:  client,
+		views:       views,
+		site:        site,
+		catalog:     messages,
+		cfg:         cfg,
+		books:       books,
+		client:      client,
+		zlibEnabled: zlibEnabled,
 	}
 }
 
@@ -46,10 +49,11 @@ func (h *HomeHandler) t(r *http.Request, key string, args ...any) string {
 func (h *HomeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	data := map[string]any{
-		"Title":     h.t(r, "home.title"),
-		"ActiveNav": "home",
-		"Query":     query,
-		"Searched":  query != "",
+		"Title":       h.t(r, "home.title"),
+		"ActiveNav":   "home",
+		"Query":       query,
+		"Searched":    query != "",
+		"ZlibEnabled": h.zlibEnabled,
 	}
 	if query != "" {
 		books, source, hint := h.lookup(r.Context(), query)

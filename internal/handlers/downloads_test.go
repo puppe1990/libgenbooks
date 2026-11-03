@@ -24,7 +24,7 @@ func newDownloadsHandler(t *testing.T) (*DownloadsHandler, *catalog.Store) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = books.Close() })
-	h := NewDownloadsHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books)
+	h := NewDownloadsHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books, false)
 	return h, books
 }
 

@@ -48,6 +48,7 @@ var enMessages = map[string]string{
 	"home.col_ext":              "Format",
 	"home.col_size":             "Size",
 	"home.download":             "Download",
+	"home.download_zlib":        "Z-Library",
 	"home.rails_heading":        "You made landfall.",
 	"home.rails_subtitle":       "%s is tied to the quay.",
 	"home.berth_label":          "Berth 01 · Amarra",
@@ -96,6 +97,9 @@ var enMessages = map[string]string{
 	"download.unsynced":         "The file mirror is still copying this binary. Newly catalogued titles take a while. Try again in a few hours, or search for another edition.",
 	"download.try_ads":          "Open the LibGen page",
 	"download.back":             "Back to search",
+	"download.zlib_disabled":    "Z-Library is disabled: set LIBGEN_ZLIB_EMAIL and LIBGEN_ZLIB_PASSWORD.",
+	"download.zlib_no_title":    "This book came without a title to search on Z-Library.",
+	"download.zlib_no_copy":     "No matching copy on Z-Library.",
 
 	"config.title":                  "Settings",
 	"config.lede":                   "Changing your password signs you out of open sessions. Sign in again afterwards.",

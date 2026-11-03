@@ -30,7 +30,7 @@ func newHomeHandlerWith(t *testing.T, baseURL string) *HomeHandler {
 	t.Cleanup(func() { _ = books.Close() })
 	client := libgen.New(baseURL)
 	client.DownloadDir = t.TempDir()
-	return NewHomeHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books, client)
+	return NewHomeHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books, client, false)
 }
 
 func TestHomeHandler_Returns200(t *testing.T) {
