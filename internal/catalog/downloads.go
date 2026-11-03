@@ -97,6 +97,37 @@ func (s *Store) CountDownloads(userID int64, failedOnly bool) (int, error) {
 	return total, nil
 }
 
+// FailedDownloads lists every failed history row, newest first; userID 0
+// covers all users, so the CLI retry command works with or without an owner.
+func (s *Store) FailedDownloads(userID int64) ([]DownloadRecord, error) {
+	query := `SELECT user_id, md5, title, author, year, extension, filesize, downloaded_at, failed
+		 FROM downloads WHERE failed = 1`
+	var args []any
+	if userID > 0 {
+		query += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	query += ` ORDER BY downloaded_at DESC`
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list failed downloads: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var records []DownloadRecord
+	for rows.Next() {
+		rec, scanErr := scanDownloadRow(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		records = append(records, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate failed downloads: %w", err)
+	}
+	return records, nil
+}
+
 // ClaimOrphanDownloads assigns leftover user_id=0 rows (pre-tenant history)
 // to userID so a cutover owner keeps the anonymous clicks.
 func (s *Store) ClaimOrphanDownloads(userID int64) error {

@@ -45,7 +45,7 @@
           <td class="book-meta">{{ .When }}</td>
           <td class="book-actions">
             {{ if .MD5 }}
-            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ t "home.download" }}<span class="sr-only">: {{ .Title }}</span></a>
+            <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ if .Failed }}{{ t "downloads.retry" }}{{ else }}{{ t "home.download" }}{{ end }}<span class="sr-only">: {{ .Title }}</span></a>
             <form action="/downloads/delete" method="post" class="mt-2">
               {{ csrfField $.CSRFToken }}
               <input type="hidden" name="md5" value="{{ .MD5 }}" />

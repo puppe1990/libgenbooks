@@ -3,6 +3,7 @@ package libgen
 import (
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -279,6 +280,44 @@ func TestDownload_DerivesFilenameFromMD5WhenTitleIsMissing(t *testing.T) {
 	}
 	if _, err := os.Stat(want); err != nil {
 		t.Fatalf("derived destination missing: %v", err)
+	}
+}
+
+func TestFetch_UnsyncedCDNPageIsTyped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`<h1 style="color:#A00000">Error</h1><p>File not found. The repositories may not be synchronized, try downloading later`))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	dest := filepath.Join(t.TempDir(), "book.epub")
+	_, err := client.FetchVerified(context.Background(), srv.URL+"/get.php?md5=x&key=k", dest, harryMD5)
+	if !errors.Is(err, ErrNotSynced) {
+		t.Fatalf("err = %v, want ErrNotSynced", err)
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "try again later") {
+		t.Errorf("error %q must tell the caller to try again later", err)
+	}
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Errorf("destination %s written from an unsynced CDN page", dest)
+	}
+}
+
+func TestFetch_Plain500IsNotUnsynced(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	_, err := client.FetchVerified(context.Background(), srv.URL+"/get.php?md5=x&key=k", filepath.Join(t.TempDir(), "book.pdf"), harryMD5)
+	if errors.Is(err, ErrNotSynced) {
+		t.Fatal("a plain 500 must not be classified as ErrNotSynced")
+	}
+	if err == nil || !strings.Contains(err.Error(), "status 500") {
+		t.Fatalf("err = %v, want the plain status error", err)
 	}
 }
 
