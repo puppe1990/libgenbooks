@@ -132,7 +132,7 @@
             <!-- cais:nav -->
           </div>
           <div class="mt-auto flex flex-col gap-3 border-t border-foam/10 pt-3">
-            <div id="zlib-quota" hidden data-endpoint="/zlib/quota" class="mx-1 flex items-center justify-between gap-2 border-b border-foam/10 pb-3 font-mono text-[10px] uppercase tracking-[0.22em]"><span class="text-copper">{{ t "layout.zlib_quota_label" }}</span><span class="text-foam/60" data-zlib-quota-fill></span></div>
+            <div id="zlib-quota" hidden data-endpoint="/zlib/quota" data-reset-label="{{ t "layout.zlib_quota_reset" }}" class="mx-1 flex flex-col gap-1 border-b border-foam/10 pb-3 font-mono text-[10px] uppercase tracking-[0.22em]"><div class="flex items-center justify-between gap-2"><span class="text-copper">{{ t "layout.zlib_quota_label" }}</span><span class="text-foam/60" data-zlib-quota-fill></span></div><span class="text-foam/35" data-zlib-quota-reset hidden></span></div>
             <div class="flex items-center justify-between gap-2">
               <.locale-toggle current="{{ .Locale }}" />
               <button type="button" class="group inline-flex items-center gap-2 px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-copper transition-colors hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f7f1e6" data-amarra-theme-color-off="#081318" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
