@@ -31,32 +31,36 @@ Seeds and fixtures come from `pkg/cais/fakedata` (`Name`, `Title`, `Email`, `Sen
 
 ## Layout
 
-| Path                        | Responsibility                           |
-| --------------------------- | ---------------------------------------- |
-| `cmd/server/`               | Entry point                              |
-| `cmd/cli/`                  | search, download, import, dump           |
-| `cmd/mcp/`                  | MCP stdio server                         |
-| `internal/libgen/`          | mirror client (search, handshake, dumps) |
-| `internal/catalog/`         | SQLite catalog + FTS5 + snapshot import  |
-| `internal/cache/`           | persists live hits in the catalog        |
-| `internal/config/`          | `LIBGEN_*` env                           |
-| `internal/mcpserver/`       | MCP tools                                |
-| `internal/app/`             | Bootstrap, `registerRoutes`              |
-| `internal/handlers/`        | HTTP handlers (`view.Write`)             |
-| `internal/store/`           | SQLite + migrations                      |
-| `internal/models/`          | Domain structs                           |
-| `web/templates/layouts/`    | Amarra layout (`#amarra-main`)           |
-| `web/templates/pages/`      | HTML pages                               |
-| `web/templates/components/` | App component overrides                  |
-| `web/static/`               | CSS, `amarra.js`, PWA                    |
+| Path                        | Responsibility                            |
+| --------------------------- | ----------------------------------------- |
+| `cmd/server/`               | Entry point                               |
+| `cmd/cli/`                  | search, download, import, dump            |
+| `cmd/mcp/`                  | MCP stdio server                          |
+| `internal/libgen/`          | mirror client (search, handshake, dumps)  |
+| `internal/sources/`         | provider chain (libgen → annas over ipfs) |
+| `internal/annas/`           | Anna's Archive md5 page → IPFS CID        |
+| `internal/ipfs/`            | public gateway racing                     |
+| `internal/catalog/`         | SQLite catalog + FTS5 + snapshot import   |
+| `internal/cache/`           | persists live hits in the catalog         |
+| `internal/config/`          | `LIBGEN_*` env                            |
+| `internal/mcpserver/`       | MCP tools                                 |
+| `internal/app/`             | Bootstrap, `registerRoutes`               |
+| `internal/handlers/`        | HTTP handlers (`view.Write`)              |
+| `internal/store/`           | SQLite + migrations                       |
+| `internal/models/`          | Domain structs                            |
+| `web/templates/layouts/`    | Amarra layout (`#amarra-main`)            |
+| `web/templates/pages/`      | HTML pages                                |
+| `web/templates/components/` | App component overrides                   |
+| `web/static/`               | CSS, `amarra.js`, PWA                     |
 
 Patch markers (do not remove): `registerRoutes`, `Close() error`, `<!-- cais:nav -->`, `// cais:live-views`.
 
 ## libgen-books domain
 
-- `internal/libgen` is the only package that talks to the mirror. Search reads `index.php?req=`, downloads go `ads.php?md5=` → `get.php?md5=…&key=…`, dumps come from `/dbdumps/`.
+- `internal/libgen` is the only package that talks to the mirror. Search reads `index.php?req=`, downloads go `ads.php?md5=` → `get.php?md5=…&key=…` (mirrors race in parallel, first signed link wins), dumps come from `/dbdumps/`.
+- `internal/sources` chains providers for downloads (`LIBGEN_SOURCES`, default `libgen,annas`): the libgen handshake first, then `internal/annas` (md5 page → IPFS CID) over `internal/ipfs` (raced gateways). `Client.FetchFile` rejects HTML payloads so a mirror error page never lands on disk as a book.
 - `libgen.ad/book/<id>` record pages are metadata-only for anonymous users; `LIBGEN_COOKIE` only helps those pages.
-- Tests never hit the network: fixtures in `internal/libgen/testdata/`, HTTP via `httptest`, SQLite `:memory:`.
+- Tests never hit the network: fixtures in `internal/libgen/testdata/` and `internal/annas/testdata/`, HTTP via `httptest`, SQLite `:memory:`.
 - The old single-file `libgen_books.sql` dump is gone; `dump` downloads the multi-part RAR, `import` reads a SQLite snapshot (columns matched by name).
 - Web `/`, `/download`, `/downloads`, `/cover`, `/configuracoes` require a session. History is keyed by `(user_id, md5)`. Boot `LIBGEN_HISTORY_OWNER_EMAIL` claims leftover `user_id=0` rows. CLI/MCP stay local. `POST /configuracoes` changes the password, revokes sessions, and signs out.
 

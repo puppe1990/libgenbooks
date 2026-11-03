@@ -12,7 +12,7 @@ import (
 
 func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	home := handlers.NewHomeHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen)
-	download := handlers.NewDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen)
+	download := handlers.NewDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen, deps.Resolver)
 	downloads := handlers.NewDownloadsHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books)
 	cover := handlers.NewCoverHandler(deps.Libgen)
 	configuracoes := handlers.NewConfiguracoesHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)

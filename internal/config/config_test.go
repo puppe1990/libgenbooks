@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoad_Defaults(t *testing.T) {
 	for _, key := range []string{"LIBGEN_DB", "LIBGEN_BASE_URL", "LIBGEN_COOKIE", "LIBGEN_DOWNLOAD_DIR", "LIBGEN_HISTORY_OWNER_EMAIL", "LIBGEN_HISTORY_OWNER_PASSWORD"} {
@@ -56,5 +59,41 @@ func TestLoad_Overrides(t *testing.T) {
 	}
 	if HistoryOwnerPassword() != "secret-from-env" {
 		t.Errorf("HistoryOwnerPassword = %q", HistoryOwnerPassword())
+	}
+}
+
+func TestLoad_SourcesDefault(t *testing.T) {
+	t.Setenv("LIBGEN_SOURCES", "")
+	t.Setenv("LIBGEN_ANNAS_URL", "")
+
+	cfg := Load()
+	if got := strings.Join(cfg.Sources, ","); got != "libgen,annas" {
+		t.Fatalf("Sources = %v, want the libgen,annas default", cfg.Sources)
+	}
+	if cfg.AnnasURL != "" {
+		t.Fatalf("AnnasURL = %q, want empty (built-in domain rotation)", cfg.AnnasURL)
+	}
+}
+
+func TestLoad_SourcesOverride(t *testing.T) {
+	t.Setenv("LIBGEN_SOURCES", " libgen , ")
+
+	cfg := Load()
+	if got := strings.Join(cfg.Sources, ","); got != "libgen" {
+		t.Fatalf("Sources = %v, want [libgen]", cfg.Sources)
+	}
+}
+
+func TestResolver_UnknownSourceFails(t *testing.T) {
+	cfg := Config{Sources: []string{"megaupload"}}
+	if _, err := cfg.Resolver(); err == nil || !strings.Contains(err.Error(), "megaupload") {
+		t.Fatalf("err = %v, want the unknown provider named", err)
+	}
+}
+
+func TestResolver_LibgenOnlyChain(t *testing.T) {
+	cfg := Config{Sources: []string{"libgen"}, BaseURL: "https://libgen.invalid"}
+	if _, err := cfg.Resolver(); err != nil {
+		t.Fatalf("Resolver() = %v, want a libgen-only chain", err)
 	}
 }

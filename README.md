@@ -3,7 +3,7 @@
 Go CLI and [MCP](https://modelcontextprotocol.io) (stdio) server to **search and download books from Library Genesis**. Every live hit is cached in a local SQLite catalog, so later offline search and `download <title>` keep working.
 
 - `libgen-books search` — live search against the `libgen.li` mirror, then cache the hits.
-- `libgen-books download` — fetch by id, md5, or title (anonymous `ads.php` → `get.php` handshake).
+- `libgen-books download` — fetch by id, md5, or title through the `LIBGEN_SOURCES` chain: the anonymous `ads.php` → `get.php` handshake across racing mirrors, then Anna's Archive over IPFS gateways.
 - MCP `libgen_search_books` / `libgen_download_book` — the same two operations for an agent.
 - `import` — load a SQLite snapshot of the catalog for fully offline search.
 - `dump` — list and download the raw dumps published by the mirror.
@@ -77,6 +77,20 @@ ID         MD5                               TITLE                              
 `search` hits the live mirror (newest year first) and falls back to the local catalog if the mirror is down. `--local` forces offline.
 `download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file.
 
+## Download sources
+
+`download` resolves an md5 through `LIBGEN_SOURCES` (default `libgen,annas`), in order:
+
+1. **libgen** — every mirror races the anonymous `ads.php` → `get.php` handshake in parallel; each host gets a short timeout and the first signed link wins.
+2. **annas** — Anna's Archive's md5 page yields the IPFS CID, public gateways race for the first bytes, and the winner serves the file.
+
+A mirror that answers `200` with an HTML page is rejected instead of being written to disk as if it were a book. Anna's Archive sits behind a bot check that sometimes answers with a challenge page; the provider then reports it and the chain keeps going. Set `LIBGEN_SOURCES=libgen` to disable the fallback, or `LIBGEN_SOURCES=annas` to go straight to IPFS gateways.
+
+```
+$ libgen-books download 3e219448bfb3f5f1923c4573faf75102
+baixado: downloads/3e219448bfb3f5f1923c4573faf75102.epub (2 MB) via libgen
+```
+
 ## MCP (stdio)
 
 ```bash
@@ -106,7 +120,7 @@ Tools:
 | Tool                   | Input                                | Output                                                                                                     |
 | ---------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | `libgen_search_books`  | `query`, `limit?`                    | `books[]` (id, md5, title, author, year, extension, size), `count`, `source` (`mirror` or `local catalog`) |
-| `libgen_download_book` | `ref` (id/md5/title), `url?`, `out?` | `path`, `bytes`, source `url`                                                                              |
+| `libgen_download_book` | `ref` (id/md5/title), `url?`, `out?` | `path`, `bytes`, source `url`, `source` (provider that worked)                                             |
 
 The server speaks JSON-RPC on stdin/stdout; logs go to stderr.
 
@@ -118,6 +132,8 @@ The server speaks JSON-RPC on stdin/stdout; logs go to stderr.
 | `LIBGEN_BASE_URL`     | `https://libgen.li` | mirror used for search/download                                                 |
 | `LIBGEN_COOKIE`       | empty               | session cookie for record pages that require login (e.g. `libgen.ad/book/<id>`) |
 | `LIBGEN_DOWNLOAD_DIR` | `downloads`         | destination when `--out`/`out` is omitted                                       |
+| `LIBGEN_SOURCES`      | `libgen,annas`      | download providers, in preference order                                         |
+| `LIBGEN_ANNAS_URL`    | empty               | primary Anna's Archive domain (empty keeps the `.gl`/`.pk`/`.gd` rotation)      |
 
 ## Stack and layout
 
@@ -127,6 +143,9 @@ Go 1.26, SQLite via `modernc.org/sqlite` (no CGO), MCP via `github.com/modelcont
 cmd/cli/            → search, download, import, dump
 cmd/mcp/            → stdio MCP server
 internal/libgen/    → mirror client: search, record page, download handshake, dumps
+internal/sources/   → provider chain (libgen → annas over ipfs)
+internal/annas/     → Anna's Archive md5 page → IPFS CID
+internal/ipfs/      → public gateway racing
 internal/catalog/   → SQLite (books, books_fts, cids), FTS5 search, snapshot import
 internal/cache/     → persist live hits in the catalog
 internal/config/    → LIBGEN_* variables

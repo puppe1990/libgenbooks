@@ -25,6 +25,8 @@ variáveis:
   LIBGEN_BASE_URL      espelho (padrão https://libgen.li)
   LIBGEN_COOKIE        cookie de sessão para record pages que exigem login
   LIBGEN_DOWNLOAD_DIR  pasta dos downloads (padrão downloads)
+  LIBGEN_SOURCES       provedores em ordem de preferência (padrão libgen,annas)
+  LIBGEN_ANNAS_URL     domínio primário do Anna's Archive (padrão embutido)
 `
 
 func main() {

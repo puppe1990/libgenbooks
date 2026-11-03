@@ -104,6 +104,13 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 	client := libcfg.Client()
 	client.HTTP.Timeout = 5 * time.Minute
 
+	resolver, err := libcfg.Resolver()
+	if err != nil {
+		_ = s.Close()
+		_ = books.Close()
+		return nil, fmt.Errorf("resolver: %w", err)
+	}
+
 	staticDir, err := cais.ResolveWebDir("static", cfg.StaticDir)
 	if err != nil {
 		_ = s.Close()
@@ -121,6 +128,7 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		DevReload: devReload,
 		Books:     books,
 		Libgen:    client,
+		Resolver:  resolver,
 	})
 }
 

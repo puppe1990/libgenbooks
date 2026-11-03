@@ -11,8 +11,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/puppe1990/libgenbooks/internal/annas"
 	"github.com/puppe1990/libgenbooks/internal/catalog"
+	"github.com/puppe1990/libgenbooks/internal/ipfs"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
+	"github.com/puppe1990/libgenbooks/internal/sources"
 )
 
 func newTestSession(t *testing.T) (*mcp.ClientSession, *catalog.Store) {
@@ -21,15 +24,21 @@ func newTestSession(t *testing.T) (*mcp.ClientSession, *catalog.Store) {
 
 func newTestSessionWithMirror(t *testing.T, baseURL string) (*mcp.ClientSession, *catalog.Store) {
 	t.Helper()
+	client := libgen.New(baseURL)
+	client.DownloadDir = t.TempDir()
+	return newTestSessionWith(t, Options{Libgen: client})
+}
+
+func newTestSessionWith(t *testing.T, options Options) (*mcp.ClientSession, *catalog.Store) {
+	t.Helper()
 	store, err := catalog.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
+	options.Catalog = store
 
-	client := libgen.New(baseURL)
-	client.DownloadDir = t.TempDir()
-	server := New(Options{Catalog: store, Libgen: client})
+	server := New(options)
 
 	ctx := context.Background()
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
@@ -216,6 +225,64 @@ func TestServer_LiveSearchThenDownloadByMD5(t *testing.T) {
 	}
 	if string(got) != string(payload) {
 		t.Errorf("downloaded body = %q", got)
+	}
+}
+
+func TestServer_DownloadUsesResolverChain(t *testing.T) {
+	deadMirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusInternalServerError)
+	}))
+	t.Cleanup(deadMirror.Close)
+
+	const docsCID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+	annasSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<a href="https://ipfs.io/ipfs/` + docsCID + `">IPFS</a>`))
+	}))
+	t.Cleanup(annasSrv.Close)
+
+	payload := []byte("EPUB-FROM-IPFS")
+	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/epub+zip")
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(gateway.Close)
+
+	client := libgen.New(deadMirror.URL)
+	client.DownloadDir = t.TempDir()
+	annasClient := annas.New("")
+	annasClient.Domains = []string{annasSrv.URL}
+	ipfsClient := ipfs.New()
+	ipfsClient.Gateways = []string{gateway.URL}
+	providers, err := sources.Providers([]string{sources.NameLibgen, sources.NameAnnas}, client, annasClient, ipfsClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	session, _ := newTestSessionWith(t, Options{Libgen: client, Resolver: sources.New(client, providers)})
+
+	destination := filepath.Join(t.TempDir(), "harry.epub")
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "libgen_download_book",
+		Arguments: map[string]any{
+			"ref": "184c16eae281bf2ebea72eb6d7aa6f6d",
+			"out": destination,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("download error: %s", textContent(t, result))
+	}
+	got, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(payload) {
+		t.Errorf("downloaded body = %q", got)
+	}
+	if body := textContent(t, result); !strings.Contains(body, "annas") {
+		t.Errorf("output = %s, want the annas provider named", body)
 	}
 }
 

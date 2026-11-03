@@ -96,12 +96,13 @@ type downloadInput struct {
 }
 
 type downloadOutput struct {
-	ID    int64  `json:"id"`
-	MD5   string `json:"md5,omitempty"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
-	Path  string `json:"path"`
-	Bytes int64  `json:"bytes"`
+	ID     int64  `json:"id"`
+	MD5    string `json:"md5,omitempty"`
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Path   string `json:"path"`
+	Bytes  int64  `json:"bytes"`
+	Source string `json:"source,omitempty"`
 }
 
 func downloadBookHandler(options Options) mcp.ToolHandlerFor[downloadInput, downloadOutput] {
@@ -110,26 +111,36 @@ func downloadBookHandler(options Options) mcp.ToolHandlerFor[downloadInput, down
 		if err != nil {
 			return nil, downloadOutput{}, err
 		}
-		result, err := options.Libgen.Download(ctx, libgen.DownloadRequest{
+		result, err := downloadBook(ctx, options, libgen.DownloadRequest{
 			BookID:    book.ID,
 			MD5:       md5,
 			Title:     book.Title,
 			Extension: book.Extension,
 			DirectURL: input.URL,
 			DestPath:  input.Out,
-		})
+		}, md5, input.URL)
 		if err != nil {
 			return nil, downloadOutput{}, err
 		}
 		return nil, downloadOutput{
-			ID:    book.ID,
-			MD5:   md5,
-			Title: book.Title,
-			URL:   result.URL,
-			Path:  result.Path,
-			Bytes: result.Bytes,
+			ID:     book.ID,
+			MD5:    md5,
+			Title:  book.Title,
+			URL:    result.URL,
+			Path:   result.Path,
+			Bytes:  result.Bytes,
+			Source: result.Source,
 		}, nil
 	}
+}
+
+// downloadBook prefers the multi-source chain when an md5 is known; direct
+// URLs and id-only references go straight to the mirror client.
+func downloadBook(ctx context.Context, options Options, request libgen.DownloadRequest, md5, directURL string) (libgen.Result, error) {
+	if options.Resolver != nil && strings.TrimSpace(directURL) == "" && strings.TrimSpace(md5) != "" {
+		return options.Resolver.Download(ctx, request)
+	}
+	return options.Libgen.Download(ctx, request)
 }
 
 // resolveTarget maps a user reference to a catalog row plus the md5 needed by

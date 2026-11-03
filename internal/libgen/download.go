@@ -28,6 +28,9 @@ type Result struct {
 	URL   string `json:"url"`
 	Path  string `json:"path"`
 	Bytes int64  `json:"bytes"`
+	// Source names the provider that produced the file; set by the source
+	// chain, empty when the client fetched the URL directly.
+	Source string `json:"source,omitempty"`
 }
 
 var unsafeFilenameRE = regexp.MustCompile(`[^a-z0-9._-]+`)
@@ -41,15 +44,21 @@ func (c *Client) Download(ctx context.Context, request DownloadRequest) (Result,
 		return Result{}, err
 	}
 
-	destPath := request.DestPath
-	if destPath == "" {
-		destPath = filepath.Join(c.downloadDir(), filenameFor(request))
-	}
+	destPath := c.Destination(request)
 	written, err := c.fetchFile(ctx, sourceURL, destPath)
 	if err != nil {
 		return Result{}, err
 	}
 	return Result{URL: sourceURL, Path: destPath, Bytes: written}, nil
+}
+
+// Destination is where Download writes: request.DestPath when set, otherwise
+// the derived <DownloadDir>/<slug>.<extension> (md5 when the title is unknown).
+func (c *Client) Destination(request DownloadRequest) string {
+	if strings.TrimSpace(request.DestPath) != "" {
+		return request.DestPath
+	}
+	return filepath.Join(c.downloadDir(), filenameFor(request))
 }
 
 // downloadSourceURL picks the most direct route the caller gave us: an explicit
@@ -114,6 +123,9 @@ func (c *Client) fetchFile(ctx context.Context, rawURL, destPath string) (int64,
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return 0, fmt.Errorf("download %s: status %d", rawURL, response.StatusCode)
 	}
+	if htmlPayload(response.Header.Get("Content-Type")) {
+		return 0, fmt.Errorf("download %s: server answered with an HTML page instead of a file (content-type %q)", rawURL, response.Header.Get("Content-Type"))
+	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return 0, fmt.Errorf("create download directory for %s: %w", destPath, err)
@@ -154,15 +166,34 @@ func (c *Client) downloadDir() string {
 }
 
 func filenameFor(request DownloadRequest) string {
-	name := slugify(request.Title)
-	if name == "" {
-		name = fmt.Sprintf("libgen-%d", request.BookID)
-	}
+	name := filenameStem(request)
 	extension := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(request.Extension)), ".")
 	if extension == "" {
 		return name
 	}
 	return name + "." + extension
+}
+
+// filenameStem prefers the title, then the catalog id, then the md5, so an
+// md5-only download never lands as "libgen-0".
+func filenameStem(request DownloadRequest) string {
+	if name := slugify(request.Title); name != "" {
+		return name
+	}
+	if request.BookID > 0 {
+		return fmt.Sprintf("libgen-%d", request.BookID)
+	}
+	if md5 := strings.ToLower(strings.TrimSpace(request.MD5)); md5 != "" {
+		return md5
+	}
+	return "libgen-book"
+}
+
+// htmlPayload reports the error pages some mirrors serve with status 200.
+// A "successful" response must not land on disk as if it were a book.
+func htmlPayload(contentType string) bool {
+	lower := strings.ToLower(contentType)
+	return strings.Contains(lower, "text/html") || strings.Contains(lower, "application/xhtml")
 }
 
 func slugify(title string) string {

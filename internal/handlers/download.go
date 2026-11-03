@@ -13,25 +13,28 @@ import (
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
+	"github.com/puppe1990/libgenbooks/internal/sources"
 )
 
 type DownloadHandler struct {
-	views   *view.Renderer
-	site    meta.Site
-	catalog *i18n.Catalog
-	cfg     cais.Config
-	books   *catalog.Store
-	client  *libgen.Client
+	views    *view.Renderer
+	site     meta.Site
+	catalog  *i18n.Catalog
+	cfg      cais.Config
+	books    *catalog.Store
+	client   *libgen.Client
+	resolver *sources.Chain
 }
 
-func NewDownloadHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store, client *libgen.Client) *DownloadHandler {
+func NewDownloadHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store, client *libgen.Client, resolver *sources.Chain) *DownloadHandler {
 	return &DownloadHandler{
-		views:   views,
-		site:    site,
-		catalog: messages,
-		cfg:     cfg,
-		books:   books,
-		client:  client,
+		views:    views,
+		site:     site,
+		catalog:  messages,
+		cfg:      cfg,
+		books:    books,
+		client:   client,
+		resolver: resolver,
 	}
 }
 
@@ -45,10 +48,11 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, h.t(r, "download.missing_md5"), http.StatusBadRequest)
 		return
 	}
-	// The file CDN (booksdl.lc) blocks datacenter IPs. Resolve the signed
-	// get.php URL here and send the browser there, so the download uses the
-	// reader's residential IP instead of the Cleat box.
-	link, err := h.client.ResolveDownload(r.Context(), md5)
+	// The file CDN (booksdl.lc) blocks datacenter IPs. Resolve a signed file
+	// URL here — LibGen's get.php first, IPFS gateways when the mirror is
+	// down — and send the browser there, so the download uses the reader's
+	// residential IP instead of the Cleat box.
+	link, err := h.resolver.Resolve(r.Context(), md5)
 	if err != nil {
 		h.rememberClick(r, md5, true)
 		if ads := h.client.AdsPageURL(md5); ads != "" {
@@ -58,13 +62,15 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.writeDownloadError(w, r, err)
 		return
 	}
-	if h.client.GetLinkUnsynced(r.Context(), link) {
+	// Only the libgen handshake link needs the unsynced probe: IPFS gateways
+	// were already verified by their provider.
+	if link.Provider == sources.NameLibgen && h.client.GetLinkUnsynced(r.Context(), link.URL) {
 		h.rememberClick(r, md5, true)
 		h.writeUnsynced(w, r, md5)
 		return
 	}
 	h.rememberClick(r, md5, false)
-	http.Redirect(w, r, link, http.StatusFound)
+	http.Redirect(w, r, link.URL, http.StatusFound)
 }
 
 func (h *DownloadHandler) writeUnsynced(w http.ResponseWriter, r *http.Request, md5 string) {

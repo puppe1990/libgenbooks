@@ -36,7 +36,7 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := cfg.Client().Download(ctx, libgen.DownloadRequest{
+	result, err := downloadViaChain(ctx, cfg, libgen.DownloadRequest{
 		BookID:    book.ID,
 		MD5:       md5,
 		Title:     book.Title,
@@ -47,8 +47,28 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("baixado: %s (%s)\n", result.Path, humanBytes(result.Bytes))
+	fmt.Printf("baixado: %s (%s)%s\n", result.Path, humanBytes(result.Bytes), sourceNote(result))
 	return nil
+}
+
+// downloadViaChain walks the LIBGEN_SOURCES providers when the reference has
+// an md5; direct URLs and id-only references keep the plain client path.
+func downloadViaChain(ctx context.Context, cfg config.Config, request libgen.DownloadRequest) (libgen.Result, error) {
+	if strings.TrimSpace(request.DirectURL) != "" || strings.TrimSpace(request.MD5) == "" {
+		return cfg.Client().Download(ctx, request)
+	}
+	chain, err := cfg.Resolver()
+	if err != nil {
+		return libgen.Result{}, err
+	}
+	return chain.Download(ctx, request)
+}
+
+func sourceNote(result libgen.Result) string {
+	if result.Source == "" {
+		return ""
+	}
+	return " via " + result.Source
 }
 
 // resolveDownloadRef maps the CLI reference to a catalog row and the md5 the
