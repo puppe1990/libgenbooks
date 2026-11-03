@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"github.com/puppe1990/amarra-cais/pkg/cais/fakedata"
 )
 
 func TestLoad_Defaults(t *testing.T) {
@@ -95,5 +97,38 @@ func TestResolver_LibgenOnlyChain(t *testing.T) {
 	cfg := Config{Sources: []string{"libgen"}, BaseURL: "https://libgen.invalid"}
 	if _, err := cfg.Resolver(); err != nil {
 		t.Fatalf("Resolver() = %v, want a libgen-only chain", err)
+	}
+}
+
+func TestLoad_ZlibCredentials(t *testing.T) {
+	fakedata.Seed(42)
+	email := fakedata.Email()
+	password := fakedata.Sentence()
+	apiURL := strings.TrimRight(fakedata.URL(), "/")
+	t.Setenv("LIBGEN_ZLIB_EMAIL", email)
+	t.Setenv("LIBGEN_ZLIB_PASSWORD", password)
+	t.Setenv("LIBGEN_ZLIB_URL", apiURL)
+
+	cfg := Load()
+	if !cfg.ZlibraryEnabled() {
+		t.Fatal("ZlibraryEnabled() = false with credentials set")
+	}
+	client := cfg.Zlibrary()
+	if client.Email != email || client.Password != password || client.BaseURL != apiURL {
+		t.Fatalf("client = %+v", client)
+	}
+}
+
+func TestLoad_ZlibDisabledWithoutCredentials(t *testing.T) {
+	t.Setenv("LIBGEN_ZLIB_EMAIL", "")
+	t.Setenv("LIBGEN_ZLIB_PASSWORD", "")
+	t.Setenv("LIBGEN_ZLIB_URL", "")
+
+	cfg := Load()
+	if cfg.ZlibraryEnabled() {
+		t.Fatal("ZlibraryEnabled() = true without credentials")
+	}
+	if cfg.Zlibrary().BaseURL == "" {
+		t.Fatal("Zlibrary() must fall back to the default API host")
 	}
 }

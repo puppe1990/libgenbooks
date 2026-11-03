@@ -6,6 +6,7 @@ import (
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
+	"github.com/puppe1990/libgenbooks/internal/zlibrary"
 )
 
 // alternateTitleThreshold is the minimum word overlap between the wanted
@@ -85,4 +86,38 @@ func pickAlternates(entries []libgen.Entry, title, extension string, tried map[s
 		alternates = append(alternates, candidate.entry)
 	}
 	return alternates
+}
+
+// pickZlibBook ranks Z-Library search hits for a replacement copy of the
+// wanted title: a hit whose md5 is the exact file that was asked for wins
+// outright (Z-Library often carries the byte-identical libgen file), then
+// same-extension copies ranked by title overlap.
+func pickZlibBook(books []zlibrary.Book, title, extension, wantedMD5 string) (zlibrary.Book, bool) {
+	wanted := strings.ToLower(strings.TrimSpace(wantedMD5))
+	if wanted != "" {
+		for _, book := range books {
+			if book.ID <= 0 || strings.TrimSpace(book.Hash) == "" {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(book.MD5), wanted) {
+				return book, true
+			}
+		}
+	}
+	best := zlibrary.Book{}
+	bestScore := 0.0
+	for _, book := range books {
+		if book.ID <= 0 || strings.TrimSpace(book.Hash) == "" {
+			continue
+		}
+		if extension != "" && !strings.EqualFold(strings.TrimSpace(book.Extension), extension) {
+			continue
+		}
+		score := titleSimilarity(title, book.Title)
+		if score < alternateTitleThreshold || score <= bestScore {
+			continue
+		}
+		best, bestScore = book, score
+	}
+	return best, bestScore > 0
 }

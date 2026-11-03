@@ -60,6 +60,7 @@ amarra-cais dev   # http://localhost:8080
 libgen-books search <title|author|isbn> [--limit N] [--local]
 libgen-books download <id|md5|title> [--out path] [--url URL] [--no-verify] [--retry N] [--retry-interval 1m]
 libgen-books retry-failed [--user N] [--from list.txt] [--out dir] [--retry N] [--no-alt] [--loop] [--pause 15m]
+libgen-books zlib <title|author> [--pick N] [--out path] [--list]
 libgen-books import [snapshot.sqlite3] [--from path]
 libgen-books dump [--list] [--part N] [--out path] [--url URL]
 libgen-books help
@@ -82,16 +83,21 @@ ID         MD5                               TITLE                              
 
 ## Copies from Z-Library (1lib.sk)
 
-1lib.sk sits behind an anti-bot wall (DiamWall): plain HTTP clients — the app included — get `307`/`517` for search, book pages and even `/dl/` links, so the app cannot search or download there on its own. The signed CDN link your browser receives (`https://dln1.ncdn.ec/books-files/...`) is plain HTTP and works from the app, but it expires in ~5 minutes. The workflow:
+The 1lib.sk **website** sits behind an anti-bot wall (DiamWall) for programmatic clients, but the **JSON API** it redirects to (`library-redirect.sk`, target of `api.z-lib.*`) answers plain HTTP: search is public, and the signed file link only needs an account. Set the credentials and the app handles the rest:
 
-1. Click Download on 1lib.sk and copy the **final CDN address** (DevTools → Network, or "copy link" on the download row).
-2. Hand it to the app before it expires:
-
-```bash
-libgen-books download <libgen-md5> --url "https://dln1.ncdn.ec/..." --no-verify
+```
+LIBGEN_ZLIB_EMAIL=you@example.com
+LIBGEN_ZLIB_PASSWORD=…
 ```
 
-Z-Library copies often have a different md5 than the libgen file (only some are byte-identical), so `--no-verify` keeps the file and prints its real hash. The same URL works as a line in `retry-failed --from`.
+```bash
+libgen-books zlib "beyond belief" --list   # ranked hits: md5, format, size, title
+libgen-books zlib "beyond belief" --pick 4 --out ~/Downloads/beyond-belief.epub
+```
+
+`retry-failed` uses the account too: when a libgen md5 never syncs and the mirror has no synced copy, it searches Z-Library for the same title, prefers a hit whose `md5` equals the requested one (Z-Library often carries the byte-identical file), and otherwise takes the closest same-format copy. Every download is verified against the `md5` Z-Library reports for that file.
+
+Without an account the older copy-paste flow still works: click Download on 1lib.sk, copy the **final CDN address** (`https://dln1.ncdn.ec/books-files/...`, valid ~5 minutes) and hand it to `download --url "<cdn-url>" --no-verify` or a `retry-failed --from` URL line.
 
 ## Download sources
 
@@ -142,14 +148,17 @@ The server speaks JSON-RPC on stdin/stdout; logs go to stderr.
 
 ## Environment
 
-| Variable              | Default             | Purpose                                                                         |
-| --------------------- | ------------------- | ------------------------------------------------------------------------------- |
-| `LIBGEN_DB`           | `./data/libgen.db`  | local SQLite catalog (cache + import)                                           |
-| `LIBGEN_BASE_URL`     | `https://libgen.li` | mirror used for search/download                                                 |
-| `LIBGEN_COOKIE`       | empty               | session cookie for record pages that require login (e.g. `libgen.ad/book/<id>`) |
-| `LIBGEN_DOWNLOAD_DIR` | `downloads`         | destination when `--out`/`out` is omitted                                       |
-| `LIBGEN_SOURCES`      | `libgen,annas`      | download providers, in preference order                                         |
-| `LIBGEN_ANNAS_URL`    | empty               | primary Anna's Archive domain (empty keeps the `.gl`/`.pk`/`.gd` rotation)      |
+| Variable               | Default               | Purpose                                                                         |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------- |
+| `LIBGEN_DB`            | `./data/libgen.db`    | local SQLite catalog (cache + import)                                           |
+| `LIBGEN_BASE_URL`      | `https://libgen.li`   | mirror used for search/download                                                 |
+| `LIBGEN_COOKIE`        | empty                 | session cookie for record pages that require login (e.g. `libgen.ad/book/<id>`) |
+| `LIBGEN_DOWNLOAD_DIR`  | `downloads`           | destination when `--out`/`out` is omitted                                       |
+| `LIBGEN_SOURCES`       | `libgen,annas`        | download providers, in preference order                                         |
+| `LIBGEN_ANNAS_URL`     | empty                 | primary Anna's Archive domain (empty keeps the `.gl`/`.pk`/`.gd` rotation)      |
+| `LIBGEN_ZLIB_EMAIL`    | empty                 | Z-Library account for `zlib` and the `retry-failed` fallback                    |
+| `LIBGEN_ZLIB_PASSWORD` | empty                 | Z-Library account password                                                      |
+| `LIBGEN_ZLIB_URL`      | `library-redirect.sk` | Z-Library API host override                                                     |
 
 ## Stack and layout
 

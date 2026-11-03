@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/puppe1990/amarra-cais/pkg/cais/fakedata"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/config"
@@ -114,7 +117,9 @@ func TestCollectPending_ScopesUserAndFallsBackToFile(t *testing.T) {
 }
 
 func TestPendingFromFile_AcceptsURLLines(t *testing.T) {
-	cdn := "https://dln1.ncdn.ec/books-files/x/redirection?filename=Mind%20Over%20Grind.epub&md5=abc&expires=1"
+	fakedata.Seed(42)
+	signedName := fakedata.Sentence()
+	cdn := "https://dln1.ncdn.ec/books-files/x/redirection?filename=" + url.QueryEscape(signedName) + "&md5=abc&expires=1"
 	path := writePendingFile(t, cdn+"|mind.epub\n"+cdn+"\n")
 
 	books, err := pendingFromFile(path)
@@ -127,13 +132,14 @@ func TestPendingFromFile_AcceptsURLLines(t *testing.T) {
 	if books[0].url != cdn || books[0].filename != "mind.epub" || books[0].extension != "epub" {
 		t.Fatalf("books[0] = %+v", books[0])
 	}
-	if books[1].url != cdn || books[1].filename != "Mind Over Grind.epub" {
+	if books[1].url != cdn || books[1].filename != signedName {
 		t.Fatalf("books[1] = %+v, want the filename= query as the file name", books[1])
 	}
 }
 
 func TestRetryOne_FetchesPastedURLWithoutHashGate(t *testing.T) {
-	payload := []byte("EPUBDATA")
+	fakedata.Seed(42)
+	payload := []byte(fakedata.Sentence())
 	sum := fmt.Sprintf("%x", md5.Sum(payload))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(payload)
