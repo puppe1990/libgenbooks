@@ -25,15 +25,18 @@ type DownloadsHandler struct {
 	catalog *i18n.Catalog
 	cfg     cais.Config
 	books   *catalog.Store
+	// zlibEnabled shows the separate Z-Library download button on each row.
+	zlibEnabled bool
 }
 
-func NewDownloadsHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store) *DownloadsHandler {
+func NewDownloadsHandler(views *view.Renderer, site meta.Site, messages *i18n.Catalog, cfg cais.Config, books *catalog.Store, zlibEnabled bool) *DownloadsHandler {
 	return &DownloadsHandler{
-		views:   views,
-		site:    site,
-		catalog: messages,
-		cfg:     cfg,
-		books:   books,
+		views:       views,
+		site:        site,
+		catalog:     messages,
+		cfg:         cfg,
+		books:       books,
+		zlibEnabled: zlibEnabled,
 	}
 }
 
@@ -45,14 +48,15 @@ func (h *DownloadsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	failedOnly := failedDownloadsFilter(r)
 	history := h.history(r, failedOnly)
 	writeView(w, r, h.views, h.cfg, "app", "downloads", amarraData(r, h.site, map[string]any{
-		"Title":      h.t(r, "downloads.title"),
-		"ActiveNav":  "downloads",
-		"Books":      history.Books,
-		"FailedOnly": failedOnly,
-		"Page":       history.Number,
-		"TotalPages": history.Total,
-		"PrevPage":   history.Number - 1,
-		"NextPage":   history.Number + 1,
+		"Title":       h.t(r, "downloads.title"),
+		"ActiveNav":   "downloads",
+		"Books":       history.Books,
+		"FailedOnly":  failedOnly,
+		"Page":        history.Number,
+		"TotalPages":  history.Total,
+		"PrevPage":    history.Number - 1,
+		"NextPage":    history.Number + 1,
+		"ZlibEnabled": h.zlibEnabled,
 	}), 0)
 }
 

@@ -48,6 +48,7 @@ var ptMessages = map[string]string{
 	"home.col_ext":              "Formato",
 	"home.col_size":             "Tamanho",
 	"home.download":             "Baixar",
+	"home.download_zlib":        "Z-Library",
 	"home.rails_heading":        "Você atracou.",
 	"home.rails_subtitle":       "%s está amarrado no cais.",
 	"home.berth_label":          "Vaga 01 · Amarra",
@@ -96,6 +97,9 @@ var ptMessages = map[string]string{
 	"download.unsynced":         "O espelho de arquivos ainda está copiando esse binário. Título recém-catalogado demora um pouco. Tenta de novo daqui a algumas horas, ou busca outra edição.",
 	"download.try_ads":          "Abrir a página do LibGen",
 	"download.back":             "Voltar à busca",
+	"download.zlib_disabled":    "Z-Library desativada: configure LIBGEN_ZLIB_EMAIL e LIBGEN_ZLIB_PASSWORD.",
+	"download.zlib_no_title":    "O livro veio sem título para procurar no Z-Library.",
+	"download.zlib_no_copy":     "Nenhuma cópia compatível no Z-Library.",
 
 	"config.title":                  "Configurações",
 	"config.lede":                   "Trocar a senha encerra as sessões abertas. Entre de novo depois.",

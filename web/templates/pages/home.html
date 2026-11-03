@@ -71,6 +71,9 @@
           <td class="book-actions">
             {{ if .MD5 }}
             <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ t "home.download" }}<span class="sr-only">: {{ .Title }}</span></a>
+            {{ if $.ZlibEnabled }}
+            <a href="/download/zlib?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="zlib-link">{{ t "home.download_zlib" }}<span class="sr-only">: {{ .Title }}</span></a>
+            {{ end }}
             {{ end }}
           </td>
         </tr>

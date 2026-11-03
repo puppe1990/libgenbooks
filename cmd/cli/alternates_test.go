@@ -35,9 +35,9 @@ func TestTitleSimilarity(t *testing.T) {
 		{a: "How a Little Becomes a Lot", b: "", wantAtLeast: 0, wantBelow: 0.1},
 	}
 	for _, c := range cases {
-		got := titleSimilarity(c.a, c.b)
+		got := zlibrary.TitleSimilarity(c.a, c.b)
 		if got < c.wantAtLeast || got > c.wantBelow {
-			t.Errorf("titleSimilarity(%q, %q) = %.2f, want [%.2f, %.2f]", c.a, c.b, got, c.wantAtLeast, c.wantBelow)
+			t.Errorf("TitleSimilarity(%q, %q) = %.2f, want [%.2f, %.2f]", c.a, c.b, got, c.wantAtLeast, c.wantBelow)
 		}
 	}
 }

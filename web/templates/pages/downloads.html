@@ -47,6 +47,9 @@
             {{ if .MD5 }}
             <div amarra-hook="dialog" class="book-action-row">
               <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ if .Failed }}{{ t "downloads.retry" }}{{ else }}{{ t "home.download" }}{{ end }}<span class="sr-only">: {{ .Title }}</span></a>
+              {{ if $.ZlibEnabled }}
+              <a href="/download/zlib?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="zlib-link">{{ t "home.download_zlib" }}<span class="sr-only">: {{ .Title }}</span></a>
+              {{ end }}
               <button type="button" class="remove-link" data-amarra-dialog-open>{{ t "downloads.delete" }}</button>
               <dialog data-amarra-dialog-target class="confirm-dialog">
                 <button type="button" class="confirm-dialog-close" data-amarra-dialog-close aria-label="{{ t "downloads.confirm_close" }}">×</button>

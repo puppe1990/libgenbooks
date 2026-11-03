@@ -11,9 +11,10 @@ import (
 )
 
 func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
-	home := handlers.NewHomeHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen)
+	home := handlers.NewHomeHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen, deps.Zlib != nil)
 	download := handlers.NewDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Libgen, deps.Resolver)
-	downloads := handlers.NewDownloadsHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books)
+	downloads := handlers.NewDownloadsHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Zlib != nil)
+	zlibDownload := handlers.NewZlibDownloadHandler(deps.Views, deps.Site, deps.Catalog, cfg, deps.Books, deps.Zlib)
 	cover := handlers.NewCoverHandler(deps.Libgen)
 	configuracoes := handlers.NewConfiguracoesHandler(deps.Views, deps.Store, deps.Site, deps.Catalog, cfg)
 	auth := handlers.NewAuthHandler(deps.Views, deps.Store, deps.Site, deps.Store.Sessions(), cfg, deps.Catalog)
@@ -24,6 +25,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 
 	r.Get("/", middleware.RequireAuthFunc("/login", home.ServeHTTP))
 	r.Get("/download", middleware.RequireAuthFunc("/login", download.ServeHTTP))
+	r.Get("/download/zlib", middleware.RequireAuthFunc("/login", zlibDownload.ServeHTTP))
 	r.Get("/downloads", middleware.RequireAuthFunc("/login", downloads.ServeHTTP))
 	r.Post("/downloads/delete", middleware.RequireAuthFunc("/login", downloads.Delete))
 	r.Get("/cover", middleware.RequireAuthFunc("/login", cover.ServeHTTP))
