@@ -58,7 +58,7 @@ amarra-cais dev   # http://localhost:8080
 
 ```bash
 libgen-books search <title|author|isbn> [--limit N] [--local]
-libgen-books download <id|md5|title> [--out path] [--url URL] [--retry N] [--retry-interval 1m]
+libgen-books download <id|md5|title> [--out path] [--url URL] [--no-verify] [--retry N] [--retry-interval 1m]
 libgen-books retry-failed [--user N] [--from list.txt] [--out dir] [--retry N] [--no-alt] [--loop] [--pause 15m]
 libgen-books import [snapshot.sqlite3] [--from path]
 libgen-books dump [--list] [--part N] [--out path] [--url URL]
@@ -78,7 +78,20 @@ ID         MD5                               TITLE                              
 `search` hits the live mirror rotation (newest year first) and falls back to the local catalog if every mirror is down. `--local` forces offline.
 `download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file. `--retry N --retry-interval 1m` pauses and retries when the CDN still reports the file as not synchronized.
 
-`retry-failed` re-tries the books that failed in the download history (`--user N`, `0` = every user) or from an `md5|file` list (`--from`). When an md5 never syncs, it falls back to a synced copy of the same title (`--no-alt` disables). `--loop --pause 15m` keeps passes coming until everything is downloaded. Files land in `--out` (default `LIBGEN_DOWNLOAD_DIR`), successful retries flip the history row, and the web history labels failed rows "Try again".
+`retry-failed` re-tries the books that failed in the download history (`--user N`, `0` = every user) or from a list (`--from`). List lines take `md5|file`, a bare `md5`, or a full `http(s)://` URL (optionally `url|file`) — the last form fetches a pasted copy as-is. When an md5 never syncs, it falls back to a synced copy of the same title (`--no-alt` disables). `--loop --pause 15m` keeps passes coming until everything is downloaded. Files land in `--out` (default `LIBGEN_DOWNLOAD_DIR`), successful retries flip the history row, and the web history labels failed rows "Try again".
+
+## Copies from Z-Library (1lib.sk)
+
+1lib.sk sits behind an anti-bot wall (DiamWall): plain HTTP clients — the app included — get `307`/`517` for search, book pages and even `/dl/` links, so the app cannot search or download there on its own. The signed CDN link your browser receives (`https://dln1.ncdn.ec/books-files/...`) is plain HTTP and works from the app, but it expires in ~5 minutes. The workflow:
+
+1. Click Download on 1lib.sk and copy the **final CDN address** (DevTools → Network, or "copy link" on the download row).
+2. Hand it to the app before it expires:
+
+```bash
+libgen-books download <libgen-md5> --url "https://dln1.ncdn.ec/..." --no-verify
+```
+
+Z-Library copies often have a different md5 than the libgen file (only some are byte-identical), so `--no-verify` keeps the file and prints its real hash. The same URL works as a line in `retry-failed --from`.
 
 ## Download sources
 

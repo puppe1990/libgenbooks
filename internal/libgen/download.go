@@ -24,6 +24,10 @@ type DownloadRequest struct {
 	Extension string
 	DirectURL string
 	DestPath  string
+	// SkipVerify accepts a file whose hash differs from MD5 — for a copy from
+	// another source (a pasted Z-Library CDN link, for instance). The finished
+	// file is kept and its real md5 comes back in Result.MD5.
+	SkipVerify bool
 }
 
 // ErrNotSynced marks a file the file CDN has not synchronized yet. The state
@@ -39,6 +43,8 @@ type Result struct {
 	// Source names the provider that produced the file; set by the source
 	// chain, empty when the client fetched the URL directly.
 	Source string `json:"source,omitempty"`
+	// MD5 is the hash computed over the written body.
+	MD5 string `json:"md5,omitempty"`
 }
 
 var unsafeFilenameRE = regexp.MustCompile(`[^a-z0-9._-]+`)
@@ -52,7 +58,11 @@ func (c *Client) Download(ctx context.Context, request DownloadRequest) (Result,
 	if err != nil {
 		return Result{}, err
 	}
-	return c.FetchVerified(ctx, sourceURL, c.Destination(request), request.MD5)
+	wantMD5 := request.MD5
+	if request.SkipVerify {
+		wantMD5 = ""
+	}
+	return c.FetchVerified(ctx, sourceURL, c.Destination(request), wantMD5)
 }
 
 // Destination is where Download writes: request.DestPath when set, otherwise
@@ -86,11 +96,11 @@ func (c *Client) FetchFile(ctx context.Context, rawURL, destPath string) (Result
 	if strings.TrimSpace(rawURL) == "" {
 		return Result{}, fmt.Errorf("fetch file: empty URL")
 	}
-	written, _, err := c.fetchFile(ctx, rawURL, destPath)
+	written, sum, err := c.fetchFile(ctx, rawURL, destPath)
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{URL: rawURL, Path: destPath, Bytes: written}, nil
+	return Result{URL: rawURL, Path: destPath, Bytes: written, MD5: sum}, nil
 }
 
 // FetchVerified is FetchFile plus the md5 gate: when wantMD5 is a 32-hex hash
@@ -108,7 +118,7 @@ func (c *Client) FetchVerified(ctx context.Context, rawURL, destPath, wantMD5 st
 		_ = os.Remove(destPath)
 		return Result{}, fmt.Errorf("download %s: md5 mismatch: computed %s, want %s", rawURL, sum, want)
 	}
-	return Result{URL: rawURL, Path: destPath, Bytes: written}, nil
+	return Result{URL: rawURL, Path: destPath, Bytes: written, MD5: sum}, nil
 }
 
 func (c *Client) pickDownloadURL(ctx context.Context, id int64) (string, error) {

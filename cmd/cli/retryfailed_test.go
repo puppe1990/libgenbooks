@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
+	"crypto/md5"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
+	"github.com/puppe1990/libgenbooks/internal/config"
 )
 
 const pendingMD5 = "54479c4878bd60adc18dc79962f4fae3"
@@ -104,6 +110,50 @@ func TestCollectPending_ScopesUserAndFallsBackToFile(t *testing.T) {
 	}
 	if len(fromFile) != 1 || fromFile[0].userID != 0 {
 		t.Fatalf("fromFile = %+v, want the file list with no history row", fromFile)
+	}
+}
+
+func TestPendingFromFile_AcceptsURLLines(t *testing.T) {
+	cdn := "https://dln1.ncdn.ec/books-files/x/redirection?filename=Mind%20Over%20Grind.epub&md5=abc&expires=1"
+	path := writePendingFile(t, cdn+"|mind.epub\n"+cdn+"\n")
+
+	books, err := pendingFromFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(books) != 2 {
+		t.Fatalf("books = %+v, want 2", books)
+	}
+	if books[0].url != cdn || books[0].filename != "mind.epub" || books[0].extension != "epub" {
+		t.Fatalf("books[0] = %+v", books[0])
+	}
+	if books[1].url != cdn || books[1].filename != "Mind Over Grind.epub" {
+		t.Fatalf("books[1] = %+v, want the filename= query as the file name", books[1])
+	}
+}
+
+func TestRetryOne_FetchesPastedURLWithoutHashGate(t *testing.T) {
+	payload := []byte("EPUBDATA")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := filepath.Join(t.TempDir(), "mind.epub")
+	book := pendingBook{url: srv.URL + "/x.epub", filename: "mind.epub", extension: "epub"}
+	alt, result, err := retryOne(context.Background(), config.Config{}, nil, book, dest, retryFailedOptions{retries: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alt != "" {
+		t.Errorf("alt = %q, want empty for a pasted URL", alt)
+	}
+	if result.MD5 != sum {
+		t.Errorf("result.MD5 = %q, want %q", result.MD5, sum)
+	}
+	if _, err := os.Stat(dest); err != nil {
+		t.Fatalf("file missing: %v", err)
 	}
 }
 
