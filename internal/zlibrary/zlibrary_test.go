@@ -3,6 +3,7 @@ package zlibrary
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -202,5 +203,76 @@ func TestDownloadLink_RejectsBooksWithoutIDOrHash(t *testing.T) {
 	}
 	if _, err := client.DownloadLink(context.Background(), Book{ID: 1}); err == nil {
 		t.Fatal("book without hash must fail")
+	}
+}
+
+func TestQuota_ComesFromTheLoginAndIsCached(t *testing.T) {
+	fakedata.Seed(42)
+	var logins int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/eapi/user/login" {
+			http.NotFound(w, r)
+			return
+		}
+		logins++
+		_, _ = w.Write([]byte(`{"success":1,"user":{"id":9,"remix_userkey":"KEY","downloads_today":6,"downloads_limit":10}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+
+	quota, err := client.Quota(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Used != 6 || quota.Limit != 10 {
+		t.Fatalf("quota = %+v, want 6/10", quota)
+	}
+	if _, err := client.Quota(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if logins != 1 {
+		t.Fatalf("logins = %d, want the cached session reused", logins)
+	}
+}
+
+func TestQuota_RefreshesAfterADownload(t *testing.T) {
+	fakedata.Seed(42)
+	link := fakedata.URL()
+	var logins int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eapi/user/login":
+			logins++
+			used := 6
+			if logins > 1 {
+				used = 7
+			}
+			_, _ = w.Write([]byte(`{"success":1,"user":{"id":9,"remix_userkey":"KEY","downloads_today":` +
+				fmt.Sprint(used) + `,"downloads_limit":10}}`))
+		case "/eapi/book/1/hash1/file":
+			payload, _ := json.Marshal(map[string]any{"success": 1, "file": map[string]string{"downloadLink": link}})
+			_, _ = w.Write(payload)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+
+	if _, err := client.DownloadLink(context.Background(), Book{ID: 1, Hash: "hash1"}); err != nil {
+		t.Fatal(err)
+	}
+	quota, err := client.Quota(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Used != 7 || logins != 2 {
+		t.Fatalf("quota = %+v after %d logins, want a fresh 7/10 reading", quota, logins)
 	}
 }

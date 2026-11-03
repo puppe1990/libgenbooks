@@ -22,6 +22,7 @@ import (
 	"github.com/puppe1990/libgenbooks/internal/config"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
 	"github.com/puppe1990/libgenbooks/internal/store"
+	"github.com/puppe1990/libgenbooks/internal/zlibrary"
 	"github.com/puppe1990/libgenbooks/web"
 )
 
@@ -110,6 +111,10 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		_ = books.Close()
 		return nil, fmt.Errorf("resolver: %w", err)
 	}
+	var zlibClient *zlibrary.Client
+	if libcfg.ZlibraryEnabled() {
+		zlibClient = libcfg.Zlibrary()
+	}
 
 	staticDir, err := cais.ResolveWebDir("static", cfg.StaticDir)
 	if err != nil {
@@ -129,6 +134,7 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		Books:     books,
 		Libgen:    client,
 		Resolver:  resolver,
+		Zlib:      zlibClient,
 	})
 }
 

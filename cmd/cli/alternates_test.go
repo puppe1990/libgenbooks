@@ -111,6 +111,15 @@ func TestPickZlibBook_RejectsUnrelatedHits(t *testing.T) {
 	}
 }
 
+func TestPickZlibBook_RejectsASingleWordFalsePositive(t *testing.T) {
+	books := []zlibrary.Book{
+		{ID: 5, Hash: "eee555", Title: "Walk-In", Extension: "epub"},
+	}
+	if got, ok := pickZlibBook(books, "walk", "epub", ""); ok {
+		t.Fatalf("pickZlibBook = %+v, want none: one shared word is not a title match", got)
+	}
+}
+
 func TestPickZlibBook_AllowsAnyExtensionWhenUnknown(t *testing.T) {
 	books := []zlibrary.Book{
 		{ID: 9, Hash: "ddd444", Title: "Open to Work How to Get Ahead in the Age of AI", Extension: "pdf"},

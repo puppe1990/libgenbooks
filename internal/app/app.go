@@ -24,6 +24,7 @@ import (
 	"github.com/puppe1990/libgenbooks/internal/libgen"
 	"github.com/puppe1990/libgenbooks/internal/sources"
 	"github.com/puppe1990/libgenbooks/internal/store"
+	"github.com/puppe1990/libgenbooks/internal/zlibrary"
 )
 
 type Deps struct {
@@ -43,6 +44,9 @@ type Deps struct {
 	// Resolver is the multi-source download chain. Nil falls back to a
 	// libgen-only chain so tests and alternative boots keep working.
 	Resolver *sources.Chain
+	// Zlib is the Z-Library API client (LIBGEN_ZLIB_*); nil hides the quota
+	// line and disables the related fallbacks in the web app.
+	Zlib *zlibrary.Client
 }
 
 type App struct {

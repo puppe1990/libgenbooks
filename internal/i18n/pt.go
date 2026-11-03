@@ -64,6 +64,7 @@ var ptMessages = map[string]string{
 	"home.minimal.hint":         "Use `amarra-cais g resource <name> --public` para começar.",
 	"layout.search_nav":         "Buscar",
 	"layout.downloads_nav":      "Downloads",
+	"layout.zlib_quota_label":   "Z-Library hoje",
 	"layout.config_nav":         "Configurações",
 	"downloads.title":           "Downloads",
 	"downloads.heading":         "Downloads",
