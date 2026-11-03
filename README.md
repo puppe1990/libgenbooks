@@ -58,7 +58,8 @@ amarra-cais dev   # http://localhost:8080
 
 ```bash
 libgen-books search <title|author|isbn> [--limit N] [--local]
-libgen-books download <id|md5|title> [--out path] [--url URL]
+libgen-books download <id|md5|title> [--out path] [--url URL] [--retry N] [--retry-interval 1m]
+libgen-books retry-failed [--user N] [--from list.txt] [--out dir] [--retry N] [--no-alt] [--loop] [--pause 15m]
 libgen-books import [snapshot.sqlite3] [--from path]
 libgen-books dump [--list] [--part N] [--out path] [--url URL]
 libgen-books help
@@ -75,7 +76,9 @@ ID         MD5                               TITLE                              
 ```
 
 `search` hits the live mirror rotation (newest year first) and falls back to the local catalog if every mirror is down. `--local` forces offline.
-`download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file.
+`download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file. `--retry N --retry-interval 1m` pauses and retries when the CDN still reports the file as not synchronized.
+
+`retry-failed` re-tries the books that failed in the download history (`--user N`, `0` = every user) or from an `md5|file` list (`--from`). When an md5 never syncs, it falls back to a synced copy of the same title (`--no-alt` disables). `--loop --pause 15m` keeps passes coming until everything is downloaded. Files land in `--out` (default `LIBGEN_DOWNLOAD_DIR`), successful retries flip the history row, and the web history labels failed rows "Try again".
 
 ## Download sources
 

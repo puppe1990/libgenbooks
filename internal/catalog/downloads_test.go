@@ -22,6 +22,41 @@ func seedDownloads(t *testing.T, s *Store, userID int64, count int, failed bool)
 	}
 }
 
+func TestFailedDownloads_ScopesUserAndSkipsSuccessfulRows(t *testing.T) {
+	s := newTestStore(t)
+	older := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Hour)
+	rows := []DownloadRecord{
+		{UserID: 1, MD5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Failed older", Failed: true, DownloadedAt: older},
+		{UserID: 1, MD5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Title: "Ok", Failed: false, DownloadedAt: newer},
+		{UserID: 2, MD5: "cccccccccccccccccccccccccccccccc", Title: "Failed other user", Failed: true, DownloadedAt: newer},
+	}
+	for _, rec := range rows {
+		if err := s.RecordDownload(rec); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	all, err := s.FailedDownloads(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("all = %+v, want both users' failed rows", all)
+	}
+	if all[0].UserID != 2 || all[1].UserID != 1 {
+		t.Fatalf("all = %+v, want newest first across users", all)
+	}
+
+	scoped, err := s.FailedDownloads(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(scoped) != 1 || scoped[0].UserID != 1 || scoped[0].Title != "Failed older" {
+		t.Fatalf("scoped = %+v, want only user 1's failed row", scoped)
+	}
+}
+
 func TestRecordDownload_ListsNewestFirst(t *testing.T) {
 	s := newTestStore(t)
 	older := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)

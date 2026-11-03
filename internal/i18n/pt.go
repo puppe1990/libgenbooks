@@ -75,6 +75,7 @@ var ptMessages = map[string]string{
 	"downloads.filter_failed":   "Falharam",
 	"downloads.col_when":        "Quando",
 	"downloads.failed":          "Download falhou",
+	"downloads.retry":           "Tentar de novo",
 	"downloads.delete":          "Remover",
 	"downloads.deleted":         "Removido do seu histórico.",
 	"downloads.delete_md5":      "Para remover do histórico é preciso o md5 da linha.",

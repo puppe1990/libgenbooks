@@ -75,6 +75,7 @@ var enMessages = map[string]string{
 	"downloads.filter_failed":   "Failed",
 	"downloads.col_when":        "When",
 	"downloads.failed":          "Download failed",
+	"downloads.retry":           "Try again",
 	"downloads.delete":          "Remove",
 	"downloads.deleted":         "Removed from your history.",
 	"downloads.delete_md5":      "Removing a history row needs its md5.",

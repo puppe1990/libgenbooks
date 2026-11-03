@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,11 @@ type DownloadRequest struct {
 	DirectURL string
 	DestPath  string
 }
+
+// ErrNotSynced marks a file the file CDN has not synchronized yet. The state
+// is transient — the CDN page itself says "try downloading later" — so callers
+// may pause and retry instead of treating it as a hard failure.
+var ErrNotSynced = errors.New("file not synchronized on the file CDN yet; try again later")
 
 // Result describes one finished file transfer.
 type Result struct {
@@ -140,6 +146,9 @@ func (c *Client) fetchFile(ctx context.Context, rawURL, destPath string) (int64,
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		if response.StatusCode == http.StatusInternalServerError && unsyncedCDNPage(response) {
+			return 0, "", fmt.Errorf("download %s: %w", rawURL, ErrNotSynced)
+		}
 		return 0, "", fmt.Errorf("download %s: status %d", rawURL, response.StatusCode)
 	}
 	if htmlPayload(response.Header.Get("Content-Type")) {
@@ -218,6 +227,18 @@ func filenameStem(request DownloadRequest) string {
 func htmlPayload(contentType string) bool {
 	lower := strings.ToLower(contentType)
 	return strings.Contains(lower, "text/html") || strings.Contains(lower, "application/xhtml")
+}
+
+// unsyncedCDNPage reports the CDN's "repositories may not be synchronized"
+// error page, served with status 500 while the file is still being copied to
+// the node. It reads a small body preview, so it is only called on the 5xx
+// path where the body would otherwise be discarded.
+func unsyncedCDNPage(response *http.Response) bool {
+	if !htmlPayload(response.Header.Get("Content-Type")) {
+		return false
+	}
+	preview, _ := io.ReadAll(io.LimitReader(response.Body, 2048))
+	return strings.Contains(strings.ToLower(string(preview)), "synchronized")
 }
 
 // expectedMD5 returns the lowercase hash to verify against, or "" when the

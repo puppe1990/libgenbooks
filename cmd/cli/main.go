@@ -15,7 +15,8 @@ const usage = `libgen-books — busca e baixa livros do Library Genesis
 
 uso:
   libgen-books search <título|autor|isbn> [--limit N] [--local]
-  libgen-books download <id|md5|título> [--out caminho] [--url URL]
+  libgen-books download <id|md5|título> [--out caminho] [--url URL] [--retry N] [--retry-interval 1m]
+  libgen-books retry-failed [--user N] [--from lista.txt] [--out pasta] [--retry N] [--no-alt] [--loop] [--pause 15m]
   libgen-books import [snapshot.sqlite3] [--from caminho]
   libgen-books dump [--list] [--part N] [--out caminho] [--url URL]
   libgen-books help
@@ -51,6 +52,8 @@ func run(args []string) error {
 		return runSearch(ctx, cfg, args[1:])
 	case "download", "d":
 		return runDownload(ctx, cfg, args[1:])
+	case "retry-failed":
+		return runRetryFailed(ctx, cfg, args[1:])
 	case "import", "i":
 		return runImport(ctx, cfg, args[1:])
 	case "dump":

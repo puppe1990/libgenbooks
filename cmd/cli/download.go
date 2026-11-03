@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/config"
@@ -13,9 +15,11 @@ import (
 )
 
 func runDownload(ctx context.Context, cfg config.Config, args []string) error {
-	flags := newFlagSet("download", "download <id|md5|título> [--out caminho] [--url URL]")
+	flags := newFlagSet("download", "download <id|md5|título> [--out caminho] [--url URL] [--retry N] [--retry-interval 1m]")
 	out := flags.String("out", "", "caminho do arquivo de destino")
 	directURL := flags.String("url", "", "URL direta do arquivo (pula o handshake do espelho)")
+	retries := flags.Int("retry", 1, "tentativas quando o CDN ainda não sincronizou o arquivo")
+	retryInterval := flags.Duration("retry-interval", time.Minute, "pausa base entre tentativas (cresce a cada uma)")
 	positional, err := parseFlags(flags, args)
 	if err != nil {
 		return err
@@ -36,19 +40,40 @@ func runDownload(ctx context.Context, cfg config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := downloadViaChain(ctx, cfg, libgen.DownloadRequest{
+	request := libgen.DownloadRequest{
 		BookID:    book.ID,
 		MD5:       md5,
 		Title:     book.Title,
 		Extension: book.Extension,
 		DirectURL: *directURL,
 		DestPath:  *out,
+	}
+	result, err := retryUnsynced(ctx, retryOptions{
+		attempts: *retries,
+		interval: *retryInterval,
+		notice: func(attempt int, pause time.Duration) {
+			fmt.Fprintf(os.Stderr, "%s ainda não sincronizou no CDN; nova tentativa em %s\n", shortRef(request.MD5), pause)
+		},
+	}, func(ctx context.Context) (libgen.Result, error) {
+		return downloadViaChain(ctx, cfg, request)
 	})
 	if err != nil {
 		return err
 	}
 	fmt.Printf("baixado: %s (%s)%s\n", result.Path, humanBytes(result.Bytes), sourceNote(result))
 	return nil
+}
+
+// shortRef names the book in progress lines: the first md5 characters, or
+// the direct URL when that is what we are fetching.
+func shortRef(md5 string) string {
+	if md5 == "" {
+		return "download"
+	}
+	if len(md5) > 8 {
+		return md5[:8]
+	}
+	return md5
 }
 
 // downloadViaChain walks the LIBGEN_SOURCES providers when the reference has
