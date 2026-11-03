@@ -12,11 +12,17 @@
       })
       .then(function (data) {
         var slot = box.querySelector("[data-zlib-quota-fill]");
+        var reset = box.querySelector("[data-zlib-quota-reset]");
         if (!data || data.enabled !== true || data.unavailable === true || !data.limit) {
           box.hidden = true;
           return;
         }
         if (slot) slot.textContent = data.used + "/" + data.limit;
+        if (reset) {
+          var left = resetLabel(box.dataset.resetLabel, data.resetAt);
+          reset.textContent = left;
+          reset.hidden = left === "";
+        }
         box.hidden = false;
       })
       .catch(function () {
@@ -33,3 +39,16 @@
   }
   document.addEventListener("amarra:morphed", fill);
 })();
+
+// resetLabel turns the ISO reset instant into "renova em 7h23m" (localized
+// prefix from the template); an empty string hides the line.
+function resetLabel(prefix, resetAt) {
+  if (!prefix || !resetAt) return "";
+  var until = new Date(resetAt).getTime() - Date.now();
+  if (!isFinite(until) || until <= 0) return "";
+  var minutes = Math.floor(until / 60000);
+  var hours = Math.floor(minutes / 60);
+  var rest = minutes % 60;
+  if (hours <= 0) return prefix + " " + rest + "m";
+  return prefix + " " + hours + "h" + String(rest).padStart(2, "0");
+}

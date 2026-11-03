@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais/fakedata"
 
@@ -51,6 +52,16 @@ func TestQuotaHandler_ReportsTheAccountQuota(t *testing.T) {
 	}
 	if body["enabled"] != true || body["used"] != float64(4) || body["limit"] != float64(10) {
 		t.Fatalf("body = %v, want 4/10", body)
+	}
+	resetAt, err := time.Parse(time.RFC3339, body["resetAt"].(string))
+	if err != nil {
+		t.Fatalf("resetAt = %v, want RFC3339", body["resetAt"])
+	}
+	if hour, minute, second := resetAt.UTC().Clock(); hour != 0 || minute != 0 || second != 0 {
+		t.Fatalf("resetAt = %v, want midnight UTC", resetAt)
+	}
+	if until := time.Until(resetAt); until <= 0 || until > 25*time.Hour {
+		t.Fatalf("resetAt = %v, want the next midnight within a day", resetAt)
 	}
 }
 

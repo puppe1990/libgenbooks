@@ -66,6 +66,7 @@ var enMessages = map[string]string{
 	"layout.search_nav":         "Search",
 	"layout.downloads_nav":      "Downloads",
 	"layout.zlib_quota_label":   "Z-Library today",
+	"layout.zlib_quota_reset":   "resets in",
 	"layout.config_nav":         "Settings",
 	"downloads.title":           "Downloads",
 	"downloads.heading":         "Downloads",
