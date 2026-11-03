@@ -123,19 +123,32 @@ html.light .search-submit { color: rgb(var(--amarra-ink)); }
 }
 .remove-link:hover { background: rgb(var(--library-rust) / 0.14); }
 .confirm-dialog {
-  width: calc(100vw - 48px); max-width: 400px; padding: 26px 28px;
+  width: calc(100vw - 48px); max-width: 400px; max-height: calc(100vh - 48px);
+  padding: 26px 28px; overflow: auto;
   border: 1px solid var(--library-line); border-radius: 12px;
   background: var(--library-surface); color: rgb(var(--amarra-foam));
+  /* the dialog lives inside the actions cell, which sets nowrap/right */
+  white-space: normal; text-align: left;
+  box-shadow: 0 24px 64px rgb(0 10 13 / 0.5);
 }
-.confirm-dialog::backdrop { background: rgb(0 10 13 / 0.55); }
+.confirm-dialog::backdrop { background: rgb(0 10 13 / 0.62); }
 .confirm-dialog-title {
+  padding-right: 32px;
   font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
   font-size: 22px; font-weight: 500; line-height: 1.2;
 }
 .confirm-dialog-copy { color: var(--library-muted); font-size: 14px; margin-top: 10px; }
-.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.confirm-dialog-close {
+  position: absolute; top: 10px; right: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 6px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--library-muted); font-size: 18px; line-height: 1;
+}
+.confirm-dialog-close:hover { border-color: var(--library-line); color: rgb(var(--amarra-foam)); }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .confirm-dialog-actions button {
-  min-height: 40px; padding: 8px 14px; border-radius: 5px;
+  min-height: 44px; padding: 10px 16px; border-radius: 5px;
   font-family: inherit; font-size: 13px; font-weight: 600;
   letter-spacing: 0; text-transform: none;
 }

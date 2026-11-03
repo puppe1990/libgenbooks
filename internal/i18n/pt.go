@@ -80,6 +80,7 @@ var ptMessages = map[string]string{
 	"downloads.confirm_heading": "Tem certeza?",
 	"downloads.confirm_copy":    "O livro sai do seu histórico de downloads. O arquivo já baixado não é apagado.",
 	"downloads.confirm_cancel":  "Cancelar",
+	"downloads.confirm_close":   "Fechar",
 	"downloads.delete":          "Remover",
 	"downloads.deleted":         "Removido do seu histórico.",
 	"downloads.delete_md5":      "Para remover do histórico é preciso o md5 da linha.",

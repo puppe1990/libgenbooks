@@ -80,6 +80,7 @@ var enMessages = map[string]string{
 	"downloads.confirm_heading": "Are you sure?",
 	"downloads.confirm_copy":    "This removes the book from your download history. The file already downloaded is not deleted.",
 	"downloads.confirm_cancel":  "Cancel",
+	"downloads.confirm_close":   "Close",
 	"downloads.delete":          "Remove",
 	"downloads.deleted":         "Removed from your history.",
 	"downloads.delete_md5":      "Removing a history row needs its md5.",

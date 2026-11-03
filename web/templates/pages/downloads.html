@@ -49,6 +49,7 @@
               <a href="/download?md5={{ .MD5 }}&title={{ urlquery .Title }}&ext={{ .Extension }}&author={{ urlquery .Author }}&year={{ .Year }}" target="_blank" rel="noopener noreferrer" data-amarra-skip class="download-link">{{ if .Failed }}{{ t "downloads.retry" }}{{ else }}{{ t "home.download" }}{{ end }}<span class="sr-only">: {{ .Title }}</span></a>
               <button type="button" class="remove-link" data-amarra-dialog-open>{{ t "downloads.delete" }}</button>
               <dialog data-amarra-dialog-target class="confirm-dialog">
+                <button type="button" class="confirm-dialog-close" data-amarra-dialog-close aria-label="{{ t "downloads.confirm_close" }}">×</button>
                 <p class="confirm-dialog-title">{{ t "downloads.confirm_heading" }}</p>
                 <p class="confirm-dialog-copy">{{ t "downloads.confirm_copy" }}</p>
                 <form action="/downloads/delete" method="post" class="confirm-dialog-actions">
