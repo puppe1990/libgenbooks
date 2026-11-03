@@ -170,6 +170,56 @@ func TestDownload_MD5Handshake(t *testing.T) {
 	}
 }
 
+func TestDownload_RejectsHTMLPayload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		_, _ = w.Write([]byte(`<!doctype html><html><body><h1>File not found</h1></body></html>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	dest := filepath.Join(t.TempDir(), "book.epub")
+	_, err := client.Download(context.Background(), DownloadRequest{
+		DirectURL: srv.URL + "/x.epub",
+		DestPath:  dest,
+	})
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "html") {
+		t.Fatalf("err = %v, want an error naming the HTML payload", err)
+	}
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Errorf("destination %s written from an HTML error page", dest)
+	}
+	if _, statErr := os.Stat(dest + ".part"); !os.IsNotExist(statErr) {
+		t.Errorf("temporary %s.part left behind", dest)
+	}
+}
+
+func TestDownload_DerivesFilenameFromMD5WhenTitleIsMissing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("EPUBDATA"))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	downloadDir := t.TempDir()
+	client.DownloadDir = downloadDir
+	result, err := client.Download(context.Background(), DownloadRequest{
+		MD5:       harryMD5,
+		Extension: "epub",
+		DirectURL: srv.URL + "/x.epub",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(downloadDir, harryMD5+".epub")
+	if result.Path != want {
+		t.Errorf("Path = %q, want %q", result.Path, want)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("derived destination missing: %v", err)
+	}
+}
+
 func TestDownload_NoSourceIsAnError(t *testing.T) {
 	client := New("https://libgen.invalid")
 	_, err := client.Download(context.Background(), DownloadRequest{DestPath: filepath.Join(t.TempDir(), "x.pdf")})

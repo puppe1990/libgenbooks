@@ -22,6 +22,7 @@ import (
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	appi18n "github.com/puppe1990/libgenbooks/internal/i18n"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
+	"github.com/puppe1990/libgenbooks/internal/sources"
 	"github.com/puppe1990/libgenbooks/internal/store"
 )
 
@@ -39,6 +40,9 @@ type Deps struct {
 	DevReload *devreload.Hub
 	Books     *catalog.Store
 	Libgen    *libgen.Client
+	// Resolver is the multi-source download chain. Nil falls back to a
+	// libgen-only chain so tests and alternative boots keep working.
+	Resolver *sources.Chain
 }
 
 type App struct {
@@ -63,6 +67,14 @@ func New(cfg cais.Config, deps Deps) (*App, error) {
 	}
 	site.Env = cfg.Env
 	deps.Site = site
+
+	if deps.Resolver == nil {
+		providers, err := sources.Providers([]string{sources.NameLibgen}, deps.Libgen, nil, nil)
+		if err != nil {
+			return nil, fmt.Errorf("resolver: %w", err)
+		}
+		deps.Resolver = sources.New(deps.Libgen, providers)
+	}
 
 	r := cais.NewRouter()
 	r.Use(middleware.CSRF(cfg))

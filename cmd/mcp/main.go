@@ -29,5 +29,9 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	return mcpserver.Serve(ctx, mcpserver.Options{Catalog: store, Libgen: cfg.Client()})
+	resolver, err := cfg.Resolver()
+	if err != nil {
+		return err
+	}
+	return mcpserver.Serve(ctx, mcpserver.Options{Catalog: store, Libgen: cfg.Client(), Resolver: resolver})
 }

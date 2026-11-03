@@ -9,12 +9,16 @@ import (
 
 	"github.com/puppe1990/libgenbooks/internal/catalog"
 	"github.com/puppe1990/libgenbooks/internal/libgen"
+	"github.com/puppe1990/libgenbooks/internal/sources"
 )
 
 // Options are the dependencies shared by every tool handler.
 type Options struct {
 	Catalog *catalog.Store
 	Libgen  *libgen.Client
+	// Resolver is the multi-source download chain (LIBGEN_SOURCES). Optional:
+	// nil keeps the plain mirror handshake.
+	Resolver *sources.Chain
 }
 
 // New builds the MCP server with the search and download tools registered.
@@ -28,7 +32,7 @@ func New(options Options) *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "libgen_download_book",
-		Description: "Download one book by catalog id, md5 or title. Uses the anonymous mirror handshake; pass a direct file url when you already have one.",
+		Description: "Download one book by catalog id, md5 or title. Tries every enabled provider (LIBGEN_SOURCES: LibGen handshake, then Anna's Archive over IPFS gateways); pass a direct file url when you already have one.",
 	}, downloadBookHandler(options))
 
 	return server
