@@ -106,6 +106,7 @@ html.light .search-submit { color: rgb(var(--amarra-ink)); }
 .book-meta { color: var(--library-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .book-format { color: var(--library-accent); font-size: 11px; text-transform: uppercase; font-weight: 600; }
 .book-actions { text-align: right; white-space: nowrap; }
+.book-action-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 .download-link {
   display: inline-flex; justify-content: center; align-items: center;
   border: 1px solid rgb(var(--amarra-copper) / 0.4); border-radius: 5px;
@@ -113,7 +114,35 @@ html.light .search-submit { color: rgb(var(--amarra-ink)); }
   font-weight: 600; color: var(--library-accent); transition: background 180ms ease-out;
 }
 .download-link:hover { background: rgb(var(--amarra-copper) / 0.12); }
-.book-actions button { min-height: 36px; font-family: inherit; letter-spacing: 0; font-size: 12px; text-transform: none; }
+.remove-link {
+  display: inline-flex; justify-content: center; align-items: center;
+  border: 1px solid rgb(var(--library-rust) / 0.45); border-radius: 5px;
+  padding: 8px 14px; min-height: 44px; font-size: 12px;
+  font-weight: 600; color: var(--library-rust); background: transparent;
+  transition: background 180ms ease-out;
+}
+.remove-link:hover { background: rgb(var(--library-rust) / 0.14); }
+.confirm-dialog {
+  width: calc(100vw - 48px); max-width: 400px; padding: 26px 28px;
+  border: 1px solid var(--library-line); border-radius: 12px;
+  background: var(--library-surface); color: rgb(var(--amarra-foam));
+}
+.confirm-dialog::backdrop { background: rgb(0 10 13 / 0.55); }
+.confirm-dialog-title {
+  font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+  font-size: 22px; font-weight: 500; line-height: 1.2;
+}
+.confirm-dialog-copy { color: var(--library-muted); font-size: 14px; margin-top: 10px; }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.confirm-dialog-actions button {
+  min-height: 40px; padding: 8px 14px; border-radius: 5px;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  letter-spacing: 0; text-transform: none;
+}
+.confirm-cancel { border: 1px solid var(--library-line); color: var(--library-muted); background: transparent; }
+.confirm-cancel:hover { border-color: rgb(var(--amarra-foam) / 0.3); color: rgb(var(--amarra-foam)); }
+.confirm-remove { border: 1px solid var(--library-rust); background: var(--library-rust); color: rgb(var(--amarra-ink)); }
+.confirm-remove:hover { background: rgb(var(--library-rust) / 0.85); }
 .empty-state { padding: 40px 24px; margin-top: 28px; border: 1px dashed var(--library-line); border-radius: 8px; text-align: center; color: var(--library-muted); }
 .empty-state h2 { color: rgb(var(--amarra-foam)); font-size: 18px; font-weight: 500; }
 .empty-state p { max-width: 48ch; margin: 8px auto 0; font-size: 14px; }
