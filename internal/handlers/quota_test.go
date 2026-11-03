@@ -57,11 +57,27 @@ func TestQuotaHandler_ReportsTheAccountQuota(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resetAt = %v, want RFC3339", body["resetAt"])
 	}
-	if hour, minute, second := resetAt.UTC().Clock(); hour != 0 || minute != 0 || second != 0 {
-		t.Fatalf("resetAt = %v, want midnight UTC", resetAt)
+	if hour, minute, second := resetAt.UTC().Clock(); hour != 21 || minute != 0 || second != 0 {
+		t.Fatalf("resetAt = %v, want 21:00 UTC (00:00 UTC+3)", resetAt)
 	}
 	if until := time.Until(resetAt); until <= 0 || until > 25*time.Hour {
-		t.Fatalf("resetAt = %v, want the next midnight within a day", resetAt)
+		t.Fatalf("resetAt = %v, want the next reset within a day", resetAt)
+	}
+}
+
+func TestNextQuotaReset_UsesTheUTCPlusThreeMidnight(t *testing.T) {
+	at := func(hour int) time.Time {
+		return time.Date(2026, 11, 3, hour, 30, 0, 0, time.UTC)
+	}
+	sameDay := nextQuotaReset(at(14))
+	wantSameDay := time.Date(2026, 11, 3, 21, 0, 0, 0, time.UTC)
+	if !sameDay.Equal(wantSameDay) {
+		t.Fatalf("nextQuotaReset(14:30 UTC) = %v, want %v", sameDay, wantSameDay)
+	}
+	nextDay := nextQuotaReset(at(22))
+	wantNextDay := time.Date(2026, 11, 4, 21, 0, 0, 0, time.UTC)
+	if !nextDay.Equal(wantNextDay) {
+		t.Fatalf("nextQuotaReset(22:30 UTC) = %v, want %v", nextDay, wantNextDay)
 	}
 }
 

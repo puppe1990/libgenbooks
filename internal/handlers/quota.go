@@ -39,10 +39,17 @@ func (h *QuotaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// nextQuotaReset is when the daily allowance renews: Z-Library resets it at
-// 00:00 UTC (their pages say the limit "will reset" then); the API exposes no
-// timestamp, so the handler derives it.
+// quotaResetHourUTC is when the daily allowance renews: Z-Library counts days
+// on a UTC+3 boundary (00:00 Moscow = 21:00 UTC). Their own site tooltip
+// ("Will reset in …") matches this; a reader in BRT sees the reset at 18:00.
+const quotaResetHourUTC = 21
+
+// nextQuotaReset is the next reset instant after now.
 func nextQuotaReset(now time.Time) time.Time {
 	utc := now.UTC()
-	return time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1)
+	boundary := time.Date(utc.Year(), utc.Month(), utc.Day(), quotaResetHourUTC, 0, 0, 0, time.UTC)
+	if !boundary.After(utc) {
+		boundary = boundary.AddDate(0, 0, 1)
+	}
+	return boundary
 }
