@@ -2,6 +2,7 @@ package libgen
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -120,6 +121,38 @@ func TestResolveDownload_RacesMirrors(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed >= 2*time.Second {
 		t.Fatalf("ResolveDownload took %v: mirrors must race in parallel, not wait on the slow one", elapsed)
+	}
+}
+
+func TestGet_StatusErrorIsTyped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "busy", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := New(srv.URL).get(context.Background(), srv.URL+"/ads.php")
+	var statusErr statusError
+	if !errors.As(err, &statusErr) || statusErr.status != http.StatusBadGateway {
+		t.Fatalf("err = %v, want a typed statusError with status 502", err)
+	}
+	if !strings.Contains(err.Error(), "status 502") {
+		t.Errorf("error %q must keep the human message", err)
+	}
+}
+
+func TestRetryableFetch_TypedStatuses(t *testing.T) {
+	retryable := []int{http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusTooManyRequests}
+	for _, status := range retryable {
+		err := statusError{rawURL: "https://libgen.li/ads.php", status: status}
+		if !retryableFetch(err) {
+			t.Errorf("retryableFetch(status %d) = false, want true", status)
+		}
+	}
+	if retryableFetch(statusError{rawURL: "https://libgen.li/ads.php", status: http.StatusNotFound}) {
+		t.Error("404 must not be retryable")
+	}
+	if retryableFetch(context.Canceled) {
+		t.Error("context cancellation must not be retryable")
 	}
 }
 

@@ -74,17 +74,17 @@ ID         MD5                               TITLE                              
 97889355   3e219448bfb3f5f1923c4573faf75102  The Art of Clean Code …             Christian Mayer     2022  epub  2 MB
 ```
 
-`search` hits the live mirror (newest year first) and falls back to the local catalog if the mirror is down. `--local` forces offline.
+`search` hits the live mirror rotation (newest year first) and falls back to the local catalog if every mirror is down. `--local` forces offline.
 `download` accepts an id, md5, or title (resolved against the catalog that `search` just filled). `--url` skips the handshake and fetches a direct file.
 
 ## Download sources
 
 `download` resolves an md5 through `LIBGEN_SOURCES` (default `libgen,annas`), in order:
 
-1. **libgen** — every mirror races the anonymous `ads.php` → `get.php` handshake in parallel; each host gets a short timeout and the first signed link wins.
+1. **libgen** — every mirror races the anonymous `ads.php` → `get.php` handshake in parallel; each host gets a short timeout and the first signed link wins. Search walks the same mirror rotation, so one dead frontend cannot take either down.
 2. **annas** — Anna's Archive's md5 page yields the IPFS CID, public gateways race for the first bytes, and the winner serves the file.
 
-A mirror that answers `200` with an HTML page is rejected instead of being written to disk as if it were a book. Anna's Archive sits behind a bot check that sometimes answers with a challenge page; the provider then reports it and the chain keeps going. Set `LIBGEN_SOURCES=libgen` to disable the fallback, or `LIBGEN_SOURCES=annas` to go straight to IPFS gateways.
+Every finished download is hashed and checked against the requested md5; a mismatch removes the file and fails the download. A mirror that answers `200` with an HTML page is rejected the same way instead of being written to disk as if it were a book. Anna's Archive sits behind a bot check that sometimes answers with a challenge page; the provider then reports it and the chain keeps going. In the web flow, a libgen link the CDN reports as unsynced is skipped so the chain can fall through to IPFS gateways. Set `LIBGEN_SOURCES=libgen` to disable the fallback, or `LIBGEN_SOURCES=annas` to go straight to IPFS gateways.
 
 ```
 $ libgen-books download 3e219448bfb3f5f1923c4573faf75102

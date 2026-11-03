@@ -233,6 +233,75 @@ func TestDownloadHandler_FallsBackToAnnasIPFS(t *testing.T) {
 	}
 }
 
+func TestDownloadHandler_FallsBackWhenLibgenLinkIsUnsynced(t *testing.T) {
+	cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`<h1>Error</h1><p>The repositories may not be synchronized, try downloading later`))
+	}))
+	t.Cleanup(cdn.Close)
+
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ads.php":
+			_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY123">GET</a>`))
+		case "/get.php":
+			http.Redirect(w, r, cdn.URL+"/get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY123", http.StatusTemporaryRedirect)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(mirror.Close)
+
+	const docsCID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+	annasSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<a href="https://ipfs.io/ipfs/` + docsCID + `">IPFS Gateway #1</a>`))
+	}))
+	t.Cleanup(annasSrv.Close)
+
+	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/epub+zip")
+		_, _ = w.Write([]byte("EPUBDATA"))
+	}))
+	t.Cleanup(gateway.Close)
+
+	books, err := catalog.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = books.Close() })
+
+	client := libgen.New(mirror.URL)
+	annasClient := annas.New("")
+	annasClient.Domains = []string{annasSrv.URL}
+	ipfsClient := ipfs.New()
+	ipfsClient.Gateways = []string{gateway.URL}
+	providers, err := sources.Providers([]string{sources.NameLibgen, sources.NameAnnas}, client, annasClient, ipfsClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h := NewDownloadHandler(setupTestViews(t), testSite(), appi18n.DefaultCatalog(), cais.Config{}, books, client, sources.New(client, providers))
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download?md5=184c16eae281bf2ebea72eb6d7aa6f6d&title=Crisis+Engineering", nil), 1)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302 to the IPFS gateway; body = %q", rr.Code, rr.Body.String())
+	}
+	want := ipfs.URLFor(gateway.URL, docsCID)
+	if got := rr.Header().Get("Location"); got != want {
+		t.Fatalf("Location = %q, want %q", got, want)
+	}
+	history, err := h.books.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 || history[0].Failed {
+		t.Fatalf("history = %+v, want the click recorded as successful", history)
+	}
+}
+
 func TestDownloadHandler_SkipsAnonymousClick(t *testing.T) {
 	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ads.php" {

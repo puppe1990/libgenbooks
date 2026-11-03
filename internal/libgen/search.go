@@ -2,6 +2,7 @@ package libgen
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -40,9 +41,10 @@ var sizeUnits = map[string]int64{
 }
 
 // Search queries the mirror's live file search and returns up to limit rows,
-// newest publication year first. This is the anonymous path: the search and
-// download pages are public even though libgen.ad gates downloads behind an
-// account.
+// newest publication year first. Every configured mirror is tried in order —
+// the same rotation the download handshake uses — so one dead frontend cannot
+// take search down. This is the anonymous path: the search and download pages
+// are public even though libgen.ad gates downloads behind an account.
 func (c *Client) Search(ctx context.Context, query string, limit int) ([]Entry, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -50,14 +52,29 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]Entry, 
 	}
 	limit = clampSearchLimit(limit)
 
+	bases := c.mirrorBases()
+	if len(bases) == 0 {
+		return nil, fmt.Errorf("search libgen: no mirror configured")
+	}
+	var failures []error
+	for _, base := range bases {
+		entries, err := c.searchMirror(ctx, base, query, limit)
+		if err == nil {
+			return entries, nil
+		}
+		failures = append(failures, fmt.Errorf("%s: %w", base, err))
+	}
+	return nil, fmt.Errorf("search libgen: every mirror failed: %w", errors.Join(failures...))
+}
+
+func (c *Client) searchMirror(ctx context.Context, base, query string, limit int) ([]Entry, error) {
 	searchURL := fmt.Sprintf("%s/index.php?req=%s&curtab=f&res=%d&page=1&order=year&ordermode=desc",
-		c.BaseURL, url.QueryEscape(query), limit)
+		base, url.QueryEscape(query), limit)
 	body, err := c.get(ctx, searchURL)
 	if err != nil {
 		return nil, err
 	}
-
-	entries := ParseSearch(body, c.BaseURL)
+	entries := ParseSearch(body, base)
 	if len(entries) > limit {
 		entries = entries[:limit]
 	}

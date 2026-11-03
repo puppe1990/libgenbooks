@@ -2,6 +2,8 @@ package libgen
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -134,10 +136,11 @@ func TestDownload_HTTPErrorIncludesStatus(t *testing.T) {
 
 func TestDownload_MD5Handshake(t *testing.T) {
 	payload := []byte("PDFDATA")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/ads.php":
-			_, _ = w.Write([]byte(`<a href="get.php?md5=184c16eae281bf2ebea72eb6d7aa6f6d&key=KEY123">GET</a>`))
+			_, _ = w.Write([]byte(`<a href="get.php?md5=` + sum + `&key=KEY123">GET</a>`))
 		case "/get.php":
 			if r.URL.Query().Get("key") != "KEY123" {
 				t.Errorf("key = %q", r.URL.Query().Get("key"))
@@ -152,8 +155,65 @@ func TestDownload_MD5Handshake(t *testing.T) {
 	client := New(srv.URL)
 	dest := filepath.Join(t.TempDir(), "book.pdf")
 	result, err := client.Download(context.Background(), DownloadRequest{
-		MD5:      "184c16eae281bf2ebea72eb6d7aa6f6d",
+		MD5:      sum,
 		DestPath: dest,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Bytes != int64(len(payload)) {
+		t.Errorf("Bytes = %d, want %d", result.Bytes, len(payload))
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(payload) {
+		t.Errorf("file body = %q", got)
+	}
+}
+
+func TestDownload_RejectsMD5Mismatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("EPUBDATA"))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	dest := filepath.Join(t.TempDir(), "book.epub")
+	_, err := client.Download(context.Background(), DownloadRequest{
+		MD5:       harryMD5,
+		DirectURL: srv.URL + "/x.epub",
+		DestPath:  dest,
+	})
+	if err == nil || !strings.Contains(err.Error(), "md5 mismatch") {
+		t.Fatalf("err = %v, want an md5 mismatch error", err)
+	}
+	if !strings.Contains(err.Error(), harryMD5) {
+		t.Errorf("error %q must name the expected hash", err)
+	}
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Errorf("mismatched file kept at %s", dest)
+	}
+	if _, statErr := os.Stat(dest + ".part"); !os.IsNotExist(statErr) {
+		t.Errorf("temporary %s.part left behind", dest)
+	}
+}
+
+func TestDownload_VerifiesMatchingMD5(t *testing.T) {
+	payload := []byte("EPUBDATA")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	dest := filepath.Join(t.TempDir(), "book.epub")
+	result, err := client.Download(context.Background(), DownloadRequest{
+		MD5:       sum,
+		DirectURL: srv.URL + "/x.epub",
+		DestPath:  dest,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -195,8 +255,10 @@ func TestDownload_RejectsHTMLPayload(t *testing.T) {
 }
 
 func TestDownload_DerivesFilenameFromMD5WhenTitleIsMissing(t *testing.T) {
+	payload := []byte("EPUBDATA")
+	sum := fmt.Sprintf("%x", md5.Sum(payload))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("EPUBDATA"))
+		_, _ = w.Write(payload)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -204,14 +266,14 @@ func TestDownload_DerivesFilenameFromMD5WhenTitleIsMissing(t *testing.T) {
 	downloadDir := t.TempDir()
 	client.DownloadDir = downloadDir
 	result, err := client.Download(context.Background(), DownloadRequest{
-		MD5:       harryMD5,
+		MD5:       sum,
 		Extension: "epub",
 		DirectURL: srv.URL + "/x.epub",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join(downloadDir, harryMD5+".epub")
+	want := filepath.Join(downloadDir, sum+".epub")
 	if result.Path != want {
 		t.Errorf("Path = %q, want %q", result.Path, want)
 	}

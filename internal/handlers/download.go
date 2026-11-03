@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,26 +52,45 @@ func (h *DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The file CDN (booksdl.lc) blocks datacenter IPs. Resolve a signed file
 	// URL here — LibGen's get.php first, IPFS gateways when the mirror is
 	// down — and send the browser there, so the download uses the reader's
-	// residential IP instead of the Cleat box.
-	link, err := h.resolver.Resolve(r.Context(), md5)
-	if err != nil {
-		h.rememberClick(r, md5, true)
-		if ads := h.client.AdsPageURL(md5); ads != "" {
-			http.Redirect(w, r, ads, http.StatusFound)
-			return
-		}
-		h.writeDownloadError(w, r, err)
+	// residential IP instead of the Cleat box. A libgen link the CDN reports
+	// as unsynced is rejected so the chain keeps walking instead of stopping
+	// at a link this server cannot prove.
+	var unsyncedLibgen bool
+	link, err := h.resolver.Resolve(r.Context(), md5, h.acceptForBrowser(&unsyncedLibgen))
+	if err == nil {
+		h.rememberClick(r, md5, false)
+		http.Redirect(w, r, link.URL, http.StatusFound)
 		return
 	}
-	// Only the libgen handshake link needs the unsynced probe: IPFS gateways
-	// were already verified by their provider.
-	if link.Provider == sources.NameLibgen && h.client.GetLinkUnsynced(r.Context(), link.URL) {
-		h.rememberClick(r, md5, true)
+	h.rememberClick(r, md5, true)
+	if unsyncedLibgen {
 		h.writeUnsynced(w, r, md5)
 		return
 	}
-	h.rememberClick(r, md5, false)
-	http.Redirect(w, r, link.URL, http.StatusFound)
+	if ads := h.client.AdsPageURL(md5); ads != "" {
+		http.Redirect(w, r, ads, http.StatusFound)
+		return
+	}
+	h.writeDownloadError(w, r, err)
+}
+
+// acceptForBrowser filters resolved links the browser should not be sent to.
+// Only the libgen handshake link needs the unsynced probe — its CDN answers
+// "repositories may not be synchronized" to datacenter IPs — and a rejected
+// link sets unsyncedLibgen so the page can keep the reader on-site when no
+// other provider answers. IPFS gateways were already byte-verified by their
+// provider and do not block datacenter IPs.
+func (h *DownloadHandler) acceptForBrowser(unsyncedLibgen *bool) func(context.Context, sources.Link) bool {
+	return func(ctx context.Context, candidate sources.Link) bool {
+		if candidate.Provider != sources.NameLibgen {
+			return true
+		}
+		if h.client.GetLinkUnsynced(ctx, candidate.URL) {
+			*unsyncedLibgen = true
+			return false
+		}
+		return true
+	}
 }
 
 func (h *DownloadHandler) writeUnsynced(w http.ResponseWriter, r *http.Request, md5 string) {
