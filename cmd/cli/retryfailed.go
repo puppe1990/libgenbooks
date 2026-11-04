@@ -336,7 +336,7 @@ func tryZlibAlternate(ctx context.Context, cfg config.Config, book pendingBook, 
 	if err != nil {
 		return "", libgen.Result{}, err
 	}
-	match, ok := pickZlibBook(books, query, book.extension, book.md5)
+	match, ok := pickZlibBook(books, query, book.author, book.extension, book.md5)
 	if !ok {
 		return "", libgen.Result{}, fmt.Errorf("zlibrary: no matching copy for %q", query)
 	}

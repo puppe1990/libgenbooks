@@ -22,10 +22,11 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 
 	loginLimit := middleware.NewRateLimiter(10, cfg)
 	resetLimit := middleware.NewRateLimiter(10, cfg)
+	zlibLimit := middleware.NewRateLimiter(10, cfg)
 
 	r.Get("/", middleware.RequireAuthFunc("/login", home.ServeHTTP))
 	r.Get("/download", middleware.RequireAuthFunc("/login", download.ServeHTTP))
-	r.Get("/download/zlib", middleware.RequireAuthFunc("/login", zlibDownload.ServeHTTP))
+	r.Get("/download/zlib", middleware.RequireAuthFunc("/login", zlibLimit.Middleware(http.HandlerFunc(zlibDownload.ServeHTTP)).ServeHTTP))
 	r.Get("/downloads", middleware.RequireAuthFunc("/login", downloads.ServeHTTP))
 	r.Post("/downloads/delete", middleware.RequireAuthFunc("/login", downloads.Delete))
 	r.Get("/cover", middleware.RequireAuthFunc("/login", cover.ServeHTTP))

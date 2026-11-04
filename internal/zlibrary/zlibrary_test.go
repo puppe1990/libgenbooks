@@ -3,6 +3,7 @@ package zlibrary
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -274,5 +275,71 @@ func TestQuota_RefreshesAfterADownload(t *testing.T) {
 	}
 	if quota.Used != 7 || logins != 2 {
 		t.Fatalf("quota = %+v after %d logins, want a fresh 7/10 reading", quota, logins)
+	}
+}
+
+func TestSearch_ReportsTheStatusWhenTheBodyIsNotJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte("<html><body>502 Bad Gateway</body></html>"))
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := New(srv.URL).Search(context.Background(), fakedata.Sentence(), 1)
+	if err == nil || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("err = %v, want the HTTP status named instead of a decode error", err)
+	}
+}
+
+func TestDownloadLink_FlagsAnExhaustedQuota(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eapi/user/login":
+			_, _ = w.Write([]byte(`{"success":1,"user":{"id":7,"remix_userkey":"KEY"}}`))
+		case "/eapi/book/3/hash3/file":
+			_, _ = w.Write([]byte(`{"success":0,"error":"Daily limit reached, please wait until tomorrow"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+	_, err := client.DownloadLink(context.Background(), Book{ID: 3, Hash: "hash3"})
+	if !errors.Is(err, ErrQuotaExhausted) {
+		t.Fatalf("err = %v, want ErrQuotaExhausted", err)
+	}
+}
+
+func TestDownloadLink_TrimsCredentialsFromTheEnvironment(t *testing.T) {
+	fakedata.Seed(42)
+	link := fakedata.URL()
+	var gotEmail, gotPassword string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eapi/user/login":
+			_ = r.ParseForm()
+			gotEmail = r.PostFormValue("email")
+			gotPassword = r.PostFormValue("password")
+			_, _ = w.Write([]byte(`{"success":1,"user":{"id":7,"remix_userkey":"KEY"}}`))
+		case "/eapi/book/4/hash4/file":
+			payload, _ := json.Marshal(map[string]any{"success": 1, "file": map[string]string{"downloadLink": link}})
+			_, _ = w.Write(payload)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := New(srv.URL)
+	client.Email = " someone@example.com "
+	client.Password = " secret "
+	if _, err := client.DownloadLink(context.Background(), Book{ID: 4, Hash: "hash4"}); err != nil {
+		t.Fatal(err)
+	}
+	if gotEmail != "someone@example.com" || gotPassword != "secret" {
+		t.Fatalf("login = %q/%q, want both credentials trimmed", gotEmail, gotPassword)
 	}
 }

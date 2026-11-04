@@ -46,6 +46,6 @@ func pickAlternates(entries []libgen.Entry, title, extension string, tried map[s
 
 // pickZlibBook ranks Z-Library search hits; the shared ranking lives in the
 // API package so the web handler can use the same rules.
-func pickZlibBook(books []zlibrary.Book, title, extension, wantedMD5 string) (zlibrary.Book, bool) {
-	return zlibrary.PickBook(books, title, extension, wantedMD5)
+func pickZlibBook(books []zlibrary.Book, title, author, extension, wantedMD5 string) (zlibrary.Book, bool) {
+	return zlibrary.PickBook(books, title, author, extension, wantedMD5)
 }

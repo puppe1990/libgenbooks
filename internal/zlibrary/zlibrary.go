@@ -51,6 +51,7 @@ type Client struct {
 	UserAgent string
 
 	mu      sync.Mutex
+	loginMu sync.Mutex
 	session *session
 }
 
@@ -73,6 +74,32 @@ const quotaTTL = 5 * time.Minute
 
 // errPleaseLogin marks an expired session, so the caller can log in again.
 var errPleaseLogin = errors.New("zlibrary: please login")
+
+// ErrQuotaExhausted marks the account's daily allowance being spent. Callers
+// surface a friendly message instead of the API's raw English, and must not
+// retry — the limit only resets on the next day boundary.
+var ErrQuotaExhausted = errors.New("zlibrary: daily download limit reached")
+
+// quotaPhrases match the API's wordings for an exhausted daily allowance.
+// The match stays narrow: a false negative only shows the raw message, while
+// a false positive would mislabel an unrelated failure.
+var quotaPhrases = []string{
+	"daily limit",
+	"limit reached",
+	"limit exceeded",
+	"reached your limit",
+	"wait until tomorrow",
+}
+
+func quotaExhausted(message string) bool {
+	lower := strings.ToLower(message)
+	for _, phrase := range quotaPhrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
 
 // New builds a client for baseURL (DefaultBaseURL when empty).
 func New(baseURL string) *Client {
@@ -147,15 +174,20 @@ func (c *Client) DownloadLink(ctx context.Context, book Book) (string, error) {
 // Quota returns the account's daily download allowance, re-reading it when
 // the cached reading aged out or a download just consumed one.
 func (c *Client) Quota(ctx context.Context) (Quota, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.session != nil && time.Since(c.session.quotaAt) < quotaTTL {
-		return c.session.quota, nil
+	if quota, ok := c.cachedQuota(); ok {
+		return quota, nil
 	}
-	if err := c.loginLocked(ctx); err != nil {
+	c.loginMu.Lock()
+	defer c.loginMu.Unlock()
+	if quota, ok := c.cachedQuota(); ok {
+		return quota, nil
+	}
+	s, err := c.login(ctx)
+	if err != nil {
 		return Quota{}, err
 	}
-	return c.session.quota, nil
+	c.storeSession(s)
+	return s.quota, nil
 }
 
 func (c *Client) fileLink(ctx context.Context, book Book) (string, error) {
@@ -180,8 +212,12 @@ func (c *Client) fileLink(ctx context.Context, book Book) (string, error) {
 		return "", fmt.Errorf("zlibrary: decode file response: %w", err)
 	}
 	if response.Success != 1 {
-		if strings.Contains(strings.ToLower(response.Error), "please login") {
+		lower := strings.ToLower(response.Error)
+		if strings.Contains(lower, "please login") {
 			return "", errPleaseLogin
+		}
+		if quotaExhausted(lower) {
+			return "", fmt.Errorf("%w: %s", ErrQuotaExhausted, strings.TrimSpace(response.Error))
 		}
 		return "", apiFailure("file", response.Error)
 	}
@@ -191,31 +227,66 @@ func (c *Client) fileLink(ctx context.Context, book Book) (string, error) {
 	return response.File.DownloadLink, nil
 }
 
-// sessionFor returns the cached session, logging in when there is none.
+// sessionFor returns the cached session, logging in when there is none. The
+// login runs outside c.mu — holding it across the network call would block
+// Quota and every other download behind one slow login.
 func (c *Client) sessionFor(ctx context.Context) (session, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.session != nil {
-		return *c.session, nil
+	if cached, ok := c.cachedSession(); ok {
+		return cached, nil
 	}
-	if err := c.loginLocked(ctx); err != nil {
+	c.loginMu.Lock()
+	defer c.loginMu.Unlock()
+	if cached, ok := c.cachedSession(); ok {
+		return cached, nil
+	}
+	s, err := c.login(ctx)
+	if err != nil {
 		return session{}, err
 	}
-	return *c.session, nil
+	c.storeSession(s)
+	return s, nil
 }
 
-// loginLocked performs one login. The endpoint only accepts form-encoded
-// credentials — a JSON body answers "Incorrect email or password".
-func (c *Client) loginLocked(ctx context.Context) error {
+func (c *Client) cachedSession() (session, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.session == nil {
+		return session{}, false
+	}
+	return *c.session, true
+}
+
+// cachedQuota returns the cached reading while it is still fresh.
+func (c *Client) cachedQuota() (Quota, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.session == nil || time.Since(c.session.quotaAt) >= quotaTTL {
+		return Quota{}, false
+	}
+	return c.session.quota, true
+}
+
+func (c *Client) storeSession(s session) {
+	c.mu.Lock()
+	c.session = &s
+	c.mu.Unlock()
+}
+
+// login performs one login. The endpoint only accepts form-encoded
+// credentials — a JSON body answers "Incorrect email or password". Both
+// credentials are trimmed: a stray space pasted from .env would otherwise
+// fail the login with no visible cause. Only sessionFor and Quota call it,
+// and only while holding loginMu, so logins never stack.
+func (c *Client) login(ctx context.Context) (session, error) {
 	email := strings.TrimSpace(c.Email)
-	password := c.Password
+	password := strings.TrimSpace(c.Password)
 	if email == "" || password == "" {
-		return fmt.Errorf("zlibrary: login needs LIBGEN_ZLIB_EMAIL and LIBGEN_ZLIB_PASSWORD")
+		return session{}, fmt.Errorf("zlibrary: login needs LIBGEN_ZLIB_EMAIL and LIBGEN_ZLIB_PASSWORD")
 	}
 	form := url.Values{"email": {email}, "password": {password}, "remember": {"true"}}.Encode()
 	payload, err := c.do(ctx, http.MethodPost, c.BaseURL+"/eapi/user/login", "application/x-www-form-urlencoded", []byte(form), nil)
 	if err != nil {
-		return err
+		return session{}, err
 	}
 	var response struct {
 		Success int    `json:"success"`
@@ -228,21 +299,20 @@ func (c *Client) loginLocked(ctx context.Context) error {
 		} `json:"user"`
 	}
 	if err := json.Unmarshal(payload, &response); err != nil {
-		return fmt.Errorf("zlibrary: decode login response: %w", err)
+		return session{}, fmt.Errorf("zlibrary: decode login response: %w", err)
 	}
 	if response.Success != 1 {
-		return apiFailure("login", response.Error)
+		return session{}, apiFailure("login", response.Error)
 	}
 	if response.User.ID <= 0 || strings.TrimSpace(response.User.RemixUserKey) == "" {
-		return fmt.Errorf("zlibrary: login response missing user id or remix_userkey")
+		return session{}, fmt.Errorf("zlibrary: login response missing user id or remix_userkey")
 	}
-	c.session = &session{
+	return session{
 		userID:  response.User.ID,
 		userKey: strings.TrimSpace(response.User.RemixUserKey),
 		quota:   Quota{Used: response.User.DownloadsToday, Limit: response.User.DownloadsLimit},
 		quotaAt: time.Now(),
-	}
-	return nil
+	}, nil
 }
 
 func (c *Client) forgetSession() {
@@ -261,8 +331,10 @@ func (c *Client) markQuotaStale() {
 	c.mu.Unlock()
 }
 
-// do runs one API request. Non-2xx answers still carry JSON errors, so the
-// status is left to the callers, which parse success/error from the body.
+// do runs one API request. The API reports business failures as JSON
+// (success=0) on any status, so callers parse the body; a non-2xx answer
+// whose body is not JSON at all (an edge node's HTML error page) is reported
+// with its status instead of surfacing as a baffling decode error.
 func (c *Client) do(ctx context.Context, method, rawURL, contentType string, body []byte, headers map[string]string) ([]byte, error) {
 	var reader io.Reader
 	if body != nil {
@@ -288,6 +360,11 @@ func (c *Client) do(ctx context.Context, method, rawURL, contentType string, bod
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("zlibrary: read %s: %w", rawURL, err)
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		if !json.Valid(payload) {
+			return nil, fmt.Errorf("zlibrary: fetch %s: status %d with a non-JSON body", rawURL, response.StatusCode)
+		}
 	}
 	return payload, nil
 }

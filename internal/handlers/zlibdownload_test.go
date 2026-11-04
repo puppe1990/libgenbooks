@@ -118,3 +118,124 @@ func TestZlibDownload_NoMatchingCopyStaysOnSite(t *testing.T) {
 		t.Fatalf("body = %q, want the no-copy notice", rr.Body.String())
 	}
 }
+
+func TestZlibDownload_RecordsFailedResolution(t *testing.T) {
+	fakedata.Seed(42)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload, _ := json.Marshal(map[string]any{"success": 1, "books": []map[string]any{{
+			"id": 9, "hash": "zzz999", "title": "An Unrelated Record", "extension": "epub",
+		}}})
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := zlibrary.New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+	h, books := newZlibHandler(t, client)
+
+	query := url.Values{"md5": {zlibMD5}, "title": {"The Way of Excellence"}, "ext": {"epub"}}
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download/zlib?"+query.Encode(), nil), 1)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	history, err := books.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 || !history[0].Failed || history[0].MD5 != zlibMD5 {
+		t.Fatalf("history = %+v, want the click recorded as failed", history)
+	}
+}
+
+func TestZlibDownload_ReloadReusesTheLinkWithoutTheAPI(t *testing.T) {
+	fakedata.Seed(42)
+	title := fakedata.Title()
+	link := fakedata.URL()
+	var searchCalls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eapi/book/search":
+			searchCalls++
+			payload, _ := json.Marshal(map[string]any{"success": 1, "books": []map[string]any{{
+				"id": 42, "hash": "abc123", "title": title, "extension": "epub", "md5": zlibMD5,
+			}}})
+			_, _ = w.Write(payload)
+		case "/eapi/user/login":
+			_, _ = w.Write([]byte(`{"success":1,"user":{"id":7,"remix_userkey":"KEY"}}`))
+		case "/eapi/book/42/abc123/file":
+			payload, _ := json.Marshal(map[string]any{"success": 1, "file": map[string]string{"downloadLink": link}})
+			_, _ = w.Write(payload)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := zlibrary.New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+	h, books := newZlibHandler(t, client)
+
+	target := "/download/zlib?md5=" + zlibMD5 + "&title=" + url.QueryEscape(title) + "&ext=epub"
+	for i := 0; i < 2; i++ {
+		req := session.WithUserID(httptest.NewRequest(http.MethodGet, target, nil), 1)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusFound || rr.Header().Get("Location") != link {
+			t.Fatalf("request %d: status = %d location = %q, want the same redirect", i, rr.Code, rr.Header().Get("Location"))
+		}
+	}
+	if searchCalls != 1 {
+		t.Fatalf("search calls = %d, want the cooldown to reuse the first resolution", searchCalls)
+	}
+	history, err := books.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("history = %+v, want one row for the reload", history)
+	}
+}
+
+func TestZlibDownload_QuotaExhaustedShowsAFriendlyMessage(t *testing.T) {
+	fakedata.Seed(42)
+	title := fakedata.Title()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eapi/book/search":
+			payload, _ := json.Marshal(map[string]any{"success": 1, "books": []map[string]any{{
+				"id": 42, "hash": "abc123", "title": title, "extension": "epub", "md5": zlibMD5,
+			}}})
+			_, _ = w.Write(payload)
+		case "/eapi/user/login":
+			_, _ = w.Write([]byte(`{"success":1,"user":{"id":7,"remix_userkey":"KEY"}}`))
+		case "/eapi/book/42/abc123/file":
+			_, _ = w.Write([]byte(`{"success":0,"error":"Daily limit reached, please wait until tomorrow"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := zlibrary.New(srv.URL)
+	client.Email = fakedata.Email()
+	client.Password = fakedata.Sentence()
+	h, books := newZlibHandler(t, client)
+
+	query := url.Values{"md5": {zlibMD5}, "title": {title}, "ext": {"epub"}}
+	req := session.WithUserID(httptest.NewRequest(http.MethodGet, "/download/zlib?"+query.Encode(), nil), 1)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "daily quota is exhausted") {
+		t.Fatalf("status = %d body = %q, want the friendly quota message", rr.Code, rr.Body.String())
+	}
+	history, err := books.ListDownloads(1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 || !history[0].Failed {
+		t.Fatalf("history = %+v, want the quota failure recorded", history)
+	}
+}
