@@ -101,6 +101,7 @@ var ptMessages = map[string]string{
 	"download.zlib_disabled":    "Z-Library desativada: configure LIBGEN_ZLIB_EMAIL e LIBGEN_ZLIB_PASSWORD.",
 	"download.zlib_no_title":    "O livro veio sem título para procurar no Z-Library.",
 	"download.zlib_no_copy":     "Nenhuma cópia compatível no Z-Library.",
+	"download.zlib_quota":       "A cota diária compartilhada da Z-Library acabou. Tenta de novo depois que ela renovar.",
 
 	"config.title":                  "Configurações",
 	"config.lede":                   "Trocar a senha encerra as sessões abertas. Entre de novo depois.",

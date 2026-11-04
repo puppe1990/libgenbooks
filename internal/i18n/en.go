@@ -101,6 +101,7 @@ var enMessages = map[string]string{
 	"download.zlib_disabled":    "Z-Library is disabled: set LIBGEN_ZLIB_EMAIL and LIBGEN_ZLIB_PASSWORD.",
 	"download.zlib_no_title":    "This book came without a title to search on Z-Library.",
 	"download.zlib_no_copy":     "No matching copy on Z-Library.",
+	"download.zlib_quota":       "The shared Z-Library daily quota is exhausted. Try again after it resets.",
 
 	"config.title":                  "Settings",
 	"config.lede":                   "Changing your password signs you out of open sessions. Sign in again afterwards.",

@@ -85,7 +85,7 @@ func TestPickZlibBook_PicksTheClosestSameExtensionCopy(t *testing.T) {
 		{ID: 3, Hash: "ccc333", Title: "Crisis Engineering Time-Tested Tools for Turning Chaos Into Clarity", Extension: "pdf"},
 		{ID: 4, Title: "Crisis Engineering without a hash", Extension: "epub"},
 	}
-	got, ok := pickZlibBook(books, "Crisis Engineering Time-Tested Tools for Turning Chaos Into Clarity", "epub", "")
+	got, ok := pickZlibBook(books, "Crisis Engineering Time-Tested Tools for Turning Chaos Into Clarity", "", "epub", "")
 	if !ok || got.ID != 1 || got.Hash != "aaa111" {
 		t.Fatalf("pickZlibBook = %+v ok=%v, want the epub copy", got, ok)
 	}
@@ -96,7 +96,7 @@ func TestPickZlibBook_PrefersTheExactMD5Copy(t *testing.T) {
 		{ID: 2, Hash: "bbb222", Title: "Beyond Belief", Extension: "pdf", MD5: "dc8832caef281830df2242739e6f6ad5"},
 		{ID: 4, Hash: "ddd444", Title: "Beyond Belief: The Science-Backed Way", Extension: "epub", MD5: "b74948a3f81ea84a2a2f0b8a02735344"},
 	}
-	got, ok := pickZlibBook(books, "Beyond Belief: The Science-Backed Way", "epub", "b74948a3f81ea84a2a2f0b8a02735344")
+	got, ok := pickZlibBook(books, "Beyond Belief: The Science-Backed Way", "", "epub", "b74948a3f81ea84a2a2f0b8a02735344")
 	if !ok || got.ID != 4 {
 		t.Fatalf("pickZlibBook = %+v ok=%v, want the exact-md5 copy even ahead of others", got, ok)
 	}
@@ -106,17 +106,26 @@ func TestPickZlibBook_RejectsUnrelatedHits(t *testing.T) {
 	books := []zlibrary.Book{
 		{ID: 2, Hash: "bbb222", Title: "2023-dec vol. 11 iss. 4", Extension: "epub"},
 	}
-	if got, ok := pickZlibBook(books, "Crisis Engineering Time-Tested Tools", "epub", ""); ok {
+	if got, ok := pickZlibBook(books, "Crisis Engineering Time-Tested Tools", "", "epub", ""); ok {
 		t.Fatalf("pickZlibBook = %+v, want none for an unrelated record", got)
 	}
 }
 
-func TestPickZlibBook_RejectsASingleWordFalsePositive(t *testing.T) {
+func TestPickZlibBook_SingleWordTitleReachesTheCopy(t *testing.T) {
 	books := []zlibrary.Book{
-		{ID: 5, Hash: "eee555", Title: "Walk-In", Extension: "epub"},
+		{ID: 5, Hash: "eee555", Title: "Dune: A Novel", Extension: "epub"},
 	}
-	if got, ok := pickZlibBook(books, "walk", "epub", ""); ok {
-		t.Fatalf("pickZlibBook = %+v, want none: one shared word is not a title match", got)
+	if got, ok := pickZlibBook(books, "Dune", "", "epub", ""); !ok || got.ID != 5 {
+		t.Fatalf("pickZlibBook = %+v ok=%v, want the single-word title to reach its copy", got, ok)
+	}
+}
+
+func TestPickZlibBook_SingleWordTitleStillRejectsUnrelated(t *testing.T) {
+	books := []zlibrary.Book{
+		{ID: 8, Hash: "hhh888", Title: "Foundation", Extension: "epub"},
+	}
+	if got, ok := pickZlibBook(books, "Dune", "", "epub", ""); ok {
+		t.Fatalf("pickZlibBook = %+v, want none for an unrelated title", got)
 	}
 }
 
@@ -124,7 +133,7 @@ func TestPickZlibBook_AllowsAnyExtensionWhenUnknown(t *testing.T) {
 	books := []zlibrary.Book{
 		{ID: 9, Hash: "ddd444", Title: "Open to Work How to Get Ahead in the Age of AI", Extension: "pdf"},
 	}
-	if got, ok := pickZlibBook(books, "Open to Work How to Get Ahead in the Age of AI", "", ""); !ok || got.ID != 9 {
+	if got, ok := pickZlibBook(books, "Open to Work How to Get Ahead in the Age of AI", "", "", ""); !ok || got.ID != 9 {
 		t.Fatalf("pickZlibBook = %+v ok=%v, want the pdf copy", got, ok)
 	}
 }
